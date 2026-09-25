@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#101A2B"/>
+  <rect x="0" y="0" width="800" height="560" fill="#D9D0C2"/>
+  <rect x="64" y="640" width="672" height="12" fill="#C8A96B"/>
+  <text x="400" y="720" text-anchor="middle" fill="#E7DED0" font-family="Arial, sans-serif" font-size="20" letter-spacing="3">DEMO C</text>
+</svg>

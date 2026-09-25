@@ -1,0 +1,44 @@
+# Git ignore — AWOH-B THE GREAT TILES VENTURE
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build / Next / Nest
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Env & secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Uploads / local storage (if used in later stages)
+uploads/
+.tmp/
+temp/
+storage/
+api/prisma/dev.db
+api/prisma/dev.db-journal
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Misc
+*.pem
+*.key

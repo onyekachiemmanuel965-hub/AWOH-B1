@@ -1,0 +1,11 @@
+User-Agent: *
+Allow: /
+
+# Auth and account surfaces should not be indexed.
+Disallow: /login
+Disallow: /register
+Disallow: /account
+Disallow: /checkout
+Disallow: /cart
+Disallow: /admin
+Disallow: /design-system

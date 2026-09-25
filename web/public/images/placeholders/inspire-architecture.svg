@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800" viewBox="0 0 1000 800" fill="none">
+  <rect width="1000" height="800" fill="#101A2B"/>
+  <path d="M0 0H1000V420H0V0Z" fill="#E7DED0"/>
+  <path d="M120 520H880" stroke="#C8A96B" stroke-width="2"/>
+  <path d="M120 560H640" stroke="#F7F3EA" stroke-opacity="0.35" stroke-width="1"/>
+  <text x="500" y="240" text-anchor="middle" fill="#101A2B" fill-opacity="0.45" font-family="Georgia, serif" font-size="34">Lines</text>
+</svg>

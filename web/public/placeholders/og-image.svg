@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" fill="none">
+  <rect width="1200" height="630" fill="#F7F3EA"/>
+  <rect x="48" y="48" width="1104" height="534" stroke="#C8A96B" stroke-width="2"/>
+  <text x="600" y="300" text-anchor="middle" fill="#101A2B" font-family="Georgia, serif" font-size="64">AWOH-B</text>
+  <text x="600" y="360" text-anchor="middle" fill="#5C6570" font-family="Arial, sans-serif" font-size="28" letter-spacing="4">THE GREAT TILES VENTURE</text>
+  <text x="600" y="420" text-anchor="middle" fill="#C8A96B" font-family="Arial, sans-serif" font-size="18">PLACEHOLDER SOCIAL PREVIEW</text>
+</svg>

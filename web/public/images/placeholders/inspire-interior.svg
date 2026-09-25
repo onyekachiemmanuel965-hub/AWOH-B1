@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <rect width="1600" height="1000" fill="#F7F3EA"/>
+  <rect x="80" y="120" width="900" height="760" fill="#E7DED0"/>
+  <rect x="1020" y="120" width="500" height="360" fill="#101A2B"/>
+  <rect x="1020" y="520" width="500" height="360" fill="#C8A96B" fill-opacity="0.35"/>
+  <text x="530" y="520" text-anchor="middle" fill="#101A2B" fill-opacity="0.35" font-family="Georgia, serif" font-size="36">Interior</text>
+</svg>

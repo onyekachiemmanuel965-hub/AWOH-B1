@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" fill="none">
+  <rect width="900" height="1200" fill="#D4C8B4"/>
+  <rect x="60" y="60" width="780" height="1080" fill="#F7F3EA" fill-opacity="0.35"/>
+  <path d="M0 300C200 260 300 400 450 360C600 320 700 200 900 240V1200H0V300Z" fill="#101A2B" fill-opacity="0.08"/>
+  <text x="450" y="620" text-anchor="middle" fill="#101A2B" fill-opacity="0.4" font-family="Georgia, serif" font-size="32">Detail</text>
+</svg>

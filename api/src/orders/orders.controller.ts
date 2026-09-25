@@ -1,0 +1,89 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { createReadStream, existsSync } from 'fs';
+import { OrdersService } from './orders.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OriginGuard } from '../auth/guards/origin.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthUserPayload } from '../auth/guards/jwt-auth.guard';
+import { PaymentsService } from '../payments/payments.service';
+
+@Controller('api/v1/orders')
+@UseGuards(OriginGuard, JwtAuthGuard)
+export class OrdersController {
+  constructor(
+    private readonly orders: OrdersService,
+    private readonly payments: PaymentsService,
+  ) {}
+
+  @Post()
+  create(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: CreateOrderDto,
+  ) {
+    return this.orders.createOrder(user.userId, dto);
+  }
+
+  @Get()
+  list(@CurrentUser() user: AuthUserPayload) {
+    return this.orders.listForUser(user.userId);
+  }
+
+  @Get(':orderId')
+  get(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.orders.getForUser(user.userId, orderId);
+  }
+
+  @Post(':orderId/payment/initialize')
+  initializePayment(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.payments.initializePaystack(user.userId, orderId);
+  }
+
+  @Post(':orderId/payment/verify')
+  verifyPayment(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('orderId') orderId: string,
+    @Body() body: { reference?: string },
+  ) {
+    return this.payments.verifyOrderPayment(
+      user.userId,
+      orderId,
+      body?.reference,
+    );
+  }
+
+  @Get(':orderId/receipt')
+  async downloadReceipt(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('orderId') orderId: string,
+    @Res() res: Response,
+  ) {
+    const receipt = await this.payments.getReceiptForUser(user.userId, orderId);
+    const path = receipt.storagePath;
+    if (!existsSync(path)) {
+      res.status(404).json({ message: 'Receipt file not found.' });
+      return;
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="receipt-${orderId}.pdf"`,
+    );
+    createReadStream(path).pipe(res);
+  }
+}

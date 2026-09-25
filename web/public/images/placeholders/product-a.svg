@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#E7DED0"/>
+  <rect x="48" y="48" width="704" height="904" fill="#F7F3EA"/>
+  <g stroke="#101A2B" stroke-opacity="0.1">
+    <path d="M48 280H752M48 512H752M48 744H752"/>
+    <path d="M280 48V952M512 48V952"/>
+  </g>
+  <text x="400" y="520" text-anchor="middle" fill="#5C6570" font-family="Arial, sans-serif" font-size="20" letter-spacing="3">DEMO A</text>
+</svg>

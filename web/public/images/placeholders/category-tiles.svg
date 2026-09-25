@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" fill="none">
+  <rect width="1200" height="900" fill="#D9D0C2"/>
+  <g fill="#F7F3EA">
+    <rect x="40" y="40" width="260" height="180"/>
+    <rect x="320" y="40" width="260" height="180"/>
+    <rect x="600" y="40" width="260" height="180"/>
+    <rect x="880" y="40" width="280" height="180"/>
+    <rect x="40" y="240" width="260" height="180"/>
+    <rect x="320" y="240" width="260" height="180"/>
+    <rect x="600" y="240" width="260" height="180"/>
+    <rect x="880" y="240" width="280" height="180"/>
+    <rect x="40" y="440" width="260" height="180"/>
+    <rect x="320" y="440" width="260" height="180"/>
+    <rect x="600" y="440" width="260" height="180"/>
+    <rect x="880" y="440" width="280" height="180"/>
+    <rect x="40" y="640" width="260" height="200"/>
+    <rect x="320" y="640" width="260" height="200"/>
+    <rect x="600" y="640" width="260" height="200"/>
+    <rect x="880" y="640" width="280" height="200"/>
+  </g>
+  <text x="600" y="470" text-anchor="middle" fill="#101A2B" fill-opacity="0.4" font-family="Georgia, serif" font-size="42">Tiles</text>
+</svg>

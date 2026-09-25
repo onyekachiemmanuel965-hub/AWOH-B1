@@ -1,0 +1,343 @@
+// AWOH-B THE GREAT TILES VENTURE — Stage 04 catalog + Stage 05 identity/RBAC
+// Local MVP uses SQLite for zero-infra bootstrap.
+// Production target remains PostgreSQL (change provider + DATABASE_URL in Stage 10).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum CatalogStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+/// Physical tile format (cm). Customer-safe; drives display aspect ratio only.
+/// Does NOT replace backend-authoritative weightPerCartonKg.
+enum TileSize {
+  SIZE_60X60
+  SIZE_40X40
+  SIZE_25X40
+  SIZE_25X50
+  SIZE_30X60
+  SIZE_120X60
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model Category {
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  description   String?
+  imageUrl      String?
+  status        CatalogStatus @default(ACTIVE)
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  subcategories Subcategory[]
+  @@index([status])
+  @@index([status, sortOrder])
+}
+
+model Subcategory {
+  id          String        @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String
+  description String?
+  imageUrl    String?
+  status      CatalogStatus @default(ACTIVE)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@index([status, sortOrder])
+}
+
+model Product {
+  id             String              @id @default(cuid())
+  subcategoryId  String
+  name           String
+  slug           String              @unique
+  description    String
+  /// Authoritative customer price in minor-independent decimal string (e.g. 12500.00)
+  price          Decimal
+  currency       String              @default("NGN")
+  status         CatalogStatus       @default(ACTIVE)
+  availability   ProductAvailability @default(AVAILABLE)
+  /// Internal stock — NEVER expose via public API
+  stockQuantity  Int                 @default(0)
+  /// Internal carton weight (kg) — NEVER expose via public API
+  weightPerCartonKg Decimal?
+  /// Authoritative physical tile size (cm). Nullable for legacy rows until set.
+  tileSize       TileSize?
+  /// Optional extensible specs JSON string (dimensions, finish, etc.)
+  specsJson      String?
+  featured       Boolean             @default(false)
+  sortOrder      Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  subcategory    Subcategory         @relation(fields: [subcategoryId], references: [id], onDelete: Restrict)
+  images         ProductImage[]
+
+  @@index([subcategoryId])
+  @@index([featured])
+  @@index([status, availability])
+  @@index([status, sortOrder])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  altText   String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ——— Stage 05: Identity & RBAC ———
+
+model Role {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  name        String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  status       UserStatus     @default(ACTIVE)
+  roleId       String
+  role         Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  orders        Order[]
+
+  @@index([roleId])
+  @@index([status])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ——— Stage 06: Orders & Payments ———
+
+enum FulfillmentMethod {
+  PICKUP
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  AWAITING_OFFLINE_PAYMENT
+  AWAITING_DELIVERY_CONFIRMATION
+  PAID
+  PAYMENT_FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  PAYSTACK
+  OFFLINE_CASH
+}
+
+/// Customer-safe delivery fee gate (Stage 07 owns fee calculation).
+enum DeliveryFeeStatus {
+  NOT_REQUIRED
+  UNCONFIRMED
+  NEEDS_NEGOTIATION
+  QUOTE_AVAILABLE
+  FEE_SET_BY_STAFF
+  EXPIRED
+}
+
+model Order {
+  id                    String             @id @default(cuid())
+  orderNumber           String             @unique
+  userId                String
+  status                OrderStatus
+  fulfillmentMethod     FulfillmentMethod
+  deliveryFeeStatus     DeliveryFeeStatus
+  /// Authoritative delivery fee when confirmed; null when unconfirmed/negotiation
+  deliveryFee           Decimal?
+  deliveryQuoteExpiresAt DateTime?
+  /// Internal snapshot (weights/distance/rates) — NEVER expose to customers
+  deliveryInternalJson  String?
+  deliveryConfigId      String?
+  subtotal              Decimal
+  total                 Decimal
+  currency              String
+  contactEmail          String
+  contactPhone          String?
+  shippingLine1         String?
+  shippingCity          String?
+  shippingState         String?
+  shippingNotes         String?
+  /// Client idempotency key — unique per user when present
+  idempotencyKey        String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  deliveryConfig        DeliveryConfig?    @relation(fields: [deliveryConfigId], references: [id], onDelete: SetNull)
+  items                 OrderItem[]
+  payments              Payment[]
+  receipt               Receipt?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deliveryFeeStatus])
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  productId    String
+  productName  String
+  productSlug  String
+  quantity     Int
+  unitPrice    Decimal
+  lineTotal    Decimal
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  method            PaymentMethod
+  provider          String
+  providerReference String?       @unique
+  amount            Decimal
+  currency          String
+  status            PaymentStatus @default(PENDING)
+  accessCode        String?
+  authorizationUrl  String?
+  paidAt            DateTime?
+  metadataJson      String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model Receipt {
+  id           String   @id @default(cuid())
+  orderId      String   @unique
+  storagePath  String
+  emailStatus  String   @default("PENDING")
+  generatedAt  DateTime @default(now())
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ——— Stage 07: Delivery configuration & audit ———
+
+model DeliveryConfig {
+  id                     String   @id @default(cuid())
+  name                   String
+  currency               String   @default("NGN")
+  /// Configurable distance rate in major currency units per km (e.g. 500.00)
+  ratePerKm              Decimal
+  /// Optional weight surcharge per kg (major units); 0 = distance-only
+  weightFactorPerKg      Decimal  @default(0)
+  minFee                 Decimal  @default(0)
+  /// Null = no max cap
+  maxFee                 Decimal?
+  /// If calculated fee exceeds this, force NEGOTIATION_REQUIRED (null = disabled)
+  negotiationThreshold   Decimal?
+  quoteTtlMinutes        Int      @default(120)
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  orders                 Order[]
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String?
+  action     String
+  entityType String
+  entityId   String
+  metadataJson String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
+  @@index([action])
+}
