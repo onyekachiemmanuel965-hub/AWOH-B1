@@ -17,9 +17,10 @@ import {
   PaymentStatus,
   ProductAvailability,
   Prisma,
+  TileSize,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateOrderDto, UpdateDeliveryAddressDto } from './dto/create-order.dto';
 import { isPaymentAllowed, toPublicOrder } from './orders.mapper';
 import {
   addMinor,
@@ -29,6 +30,28 @@ import {
 } from '../common/money';
 import { DeliveryService } from '../delivery/delivery.service';
 import { AuditService } from '../audit/audit.service';
+import { LocationsService } from '../locations/locations.service';
+import { toPublicTileSizeFields } from '../catalog/tile-size';
+
+/** Snapshot catalogue SKU at order time (specsJson.sku, else sku-{code} slug). */
+function snapshotProductSku(product: {
+  slug: string;
+  specsJson: string | null;
+}): string {
+  if (product.specsJson) {
+    try {
+      const parsed = JSON.parse(product.specsJson) as { sku?: unknown };
+      if (typeof parsed?.sku === 'string' && parsed.sku.trim()) {
+        return parsed.sku.trim();
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  const m = /^sku-(.+)$/i.exec(product.slug.trim());
+  if (m) return m[1].toUpperCase();
+  return product.slug;
+}
 
 const orderInclude = {
   items: true,
@@ -44,6 +67,7 @@ export class OrdersService {
     @Inject(forwardRef(() => DeliveryService))
     private readonly delivery: DeliveryService,
     private readonly audit: AuditService,
+    private readonly locations: LocationsService,
   ) {}
 
   private currency() {
@@ -76,11 +100,27 @@ export class OrdersService {
 
     if (
       dto.fulfillmentMethod === FulfillmentMethod.DELIVERY &&
-      !dto.shippingLine1?.trim()
+      (!dto.shippingStateId ||
+        !dto.shippingLgaId ||
+        !dto.shippingTownId ||
+        !dto.shippingLine1?.trim())
     ) {
       throw new BadRequestException(
-        'Delivery address is required for delivery orders.',
+        'Complete delivery address (State, LGA, Town/City, and street address) is required.',
       );
+    }
+
+    let deliveryAddress: Awaited<
+      ReturnType<LocationsService['resolveValidatedAddress']>
+    > | null = null;
+    if (dto.fulfillmentMethod === FulfillmentMethod.DELIVERY) {
+      deliveryAddress = await this.locations.resolveValidatedAddress({
+        stateId: dto.shippingStateId!,
+        lgaId: dto.shippingLgaId!,
+        townId: dto.shippingTownId!,
+        address: dto.shippingLine1!,
+        deliveryInstructions: dto.shippingNotes,
+      });
     }
 
     const productIds = [...new Set(dto.items.map((i) => i.productId))];
@@ -100,6 +140,8 @@ export class OrdersService {
       productId: string;
       productName: string;
       productSlug: string;
+      productSku: string;
+      tileSizeLabel: string | null;
       quantity: number;
       unitPrice: string;
       lineTotal: string;
@@ -121,10 +163,13 @@ export class OrdersService {
       const unitMinor = toMinorUnits(product.price.toString());
       const lineMinor = multiplyMinor(unitMinor, line.quantity);
       subtotalMinor = addMinor(subtotalMinor, lineMinor);
+      const tile = toPublicTileSizeFields(product.tileSize as TileSize | null);
       lineData.push({
         productId: product.id,
         productName: product.name,
         productSlug: product.slug,
+        productSku: snapshotProductSku(product),
+        tileSizeLabel: tile.tileSizeLabel,
         quantity: line.quantity,
         unitPrice: fromMinorUnits(unitMinor),
         lineTotal: fromMinorUnits(lineMinor),
@@ -156,9 +201,9 @@ export class OrdersService {
           };
         }),
         {
-          shippingLine1: dto.shippingLine1,
-          shippingCity: dto.shippingCity,
-          shippingState: dto.shippingState,
+          shippingLine1: deliveryAddress!.shippingLine1,
+          shippingCity: deliveryAddress!.shippingCity,
+          shippingState: deliveryAddress!.shippingState,
         },
       );
       deliveryFeeStatus = evaluated.status;
@@ -213,10 +258,14 @@ export class OrdersService {
             currency,
             contactEmail: dto.contactEmail.trim().toLowerCase(),
             contactPhone: dto.contactPhone?.trim() || null,
-            shippingLine1: dto.shippingLine1?.trim() || null,
-            shippingCity: dto.shippingCity?.trim() || null,
-            shippingState: dto.shippingState?.trim() || null,
-            shippingNotes: dto.shippingNotes?.trim() || null,
+            shippingLine1: deliveryAddress?.shippingLine1 ?? null,
+            shippingCity: deliveryAddress?.shippingCity ?? null,
+            shippingLga: deliveryAddress?.shippingLga ?? null,
+            shippingState: deliveryAddress?.shippingState ?? null,
+            shippingNotes: deliveryAddress?.shippingNotes ?? null,
+            shippingStateId: deliveryAddress?.shippingStateId ?? null,
+            shippingLgaId: deliveryAddress?.shippingLgaId ?? null,
+            shippingTownId: deliveryAddress?.shippingTownId ?? null,
             idempotencyKey: dto.idempotencyKey || null,
             items: {
               create: lineData,
@@ -241,15 +290,34 @@ export class OrdersService {
 
       await this.audit.log({
         actorUserId: userId,
-        action: 'delivery.quote_created',
+        action:
+          created.fulfillmentMethod === FulfillmentMethod.DELIVERY
+            ? 'delivery.quote_requested'
+            : 'order.created',
         entityType: 'Order',
         entityId: created.id,
         metadata: {
           deliveryFeeStatus: created.deliveryFeeStatus,
-          // Never log raw weight tables to customer-visible channels; audit is internal.
+          fulfillmentMethod: created.fulfillmentMethod,
+          shippingState: created.shippingState,
+          shippingLga: created.shippingLga,
+          shippingCity: created.shippingCity,
           hasInternalSnapshot: Boolean(created.deliveryInternalJson),
         },
       });
+      if (created.fulfillmentMethod === FulfillmentMethod.DELIVERY) {
+        await this.audit.log({
+          actorUserId: userId,
+          action: 'delivery.address_submitted',
+          entityType: 'Order',
+          entityId: created.id,
+          metadata: {
+            shippingState: created.shippingState,
+            shippingLga: created.shippingLga,
+            shippingCity: created.shippingCity,
+          },
+        });
+      }
 
       return toPublicOrder(created);
     } catch (err) {
@@ -285,28 +353,271 @@ export class OrdersService {
   }
 
   async getForUser(userId: string, orderId: string) {
-    const order = await this.prisma.order.findFirst({
+    let order = await this.prisma.order.findFirst({
       where: { id: orderId, userId },
       include: orderInclude,
     });
     if (!order) throw new NotFoundException('Order not found.');
+    order = await this.ensureDeliveryQuoteVersion(order);
     return toPublicOrder(order);
   }
 
+  /**
+   * Fees saved before Stage 09 versioning used deliveryQuoteVersion=0.
+   * Promote those to version 1 (unconfirmed) so Pay Now stays locked until
+   * the customer explicitly confirms.
+   */
+  private async ensureDeliveryQuoteVersion<
+    T extends {
+      id: string;
+      fulfillmentMethod: FulfillmentMethod;
+      deliveryFeeStatus: DeliveryFeeStatus;
+      deliveryFee: { toString(): string } | null;
+      deliveryQuoteVersion: number;
+    },
+  >(order: T): Promise<T> {
+    if (
+      order.fulfillmentMethod !== FulfillmentMethod.DELIVERY ||
+      order.deliveryFee == null ||
+      (order.deliveryFeeStatus !== DeliveryFeeStatus.FEE_SET_BY_STAFF &&
+        order.deliveryFeeStatus !== DeliveryFeeStatus.QUOTE_AVAILABLE) ||
+      (order.deliveryQuoteVersion ?? 0) >= 1
+    ) {
+      return order;
+    }
+    return (await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        deliveryQuoteVersion: 1,
+        deliveryQuoteConfirmedVersion: null,
+        deliveryQuoteConfirmedAt: null,
+      },
+      include: orderInclude,
+    })) as unknown as T;
+  }
+
   async getOwnedEntity(userId: string, orderId: string) {
+    let order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: orderInclude,
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    order = await this.ensureDeliveryQuoteVersion(order);
+    return order;
+  }
+
+  /**
+   * Customer updates delivery destination on an unpaid delivery order.
+   * Invalidates any prior staff quote / customer confirmation.
+   */
+  async updateDeliveryAddress(
+    userId: string,
+    orderId: string,
+    dto: UpdateDeliveryAddressDto,
+    ip?: string,
+  ) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, userId },
       include: orderInclude,
     });
     if (!order) throw new NotFoundException('Order not found.');
-    return order;
+    if (order.fulfillmentMethod !== FulfillmentMethod.DELIVERY) {
+      throw new BadRequestException('Order is not a delivery order.');
+    }
+    if (
+      order.status === OrderStatus.PAID ||
+      order.status === OrderStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Delivery address cannot be changed for this order.',
+      );
+    }
+
+    const address = await this.locations.resolveValidatedAddress({
+      stateId: dto.shippingStateId,
+      lgaId: dto.shippingLgaId,
+      townId: dto.shippingTownId,
+      address: dto.shippingLine1,
+      deliveryInstructions: dto.shippingNotes,
+    });
+
+    const evaluated = await this.delivery.evaluateForOrderLines(
+      order.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        weightPerCartonKg: null,
+        productName: item.productName,
+      })),
+      {
+        shippingLine1: address.shippingLine1,
+        shippingCity: address.shippingCity,
+        shippingState: address.shippingState,
+      },
+    );
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: {
+          orderId: order.id,
+          status: {
+            in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING],
+          },
+        },
+        data: { status: PaymentStatus.CANCELLED },
+      });
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          ...address,
+          deliveryFee: null,
+          deliveryFeeStatus: DeliveryFeeStatus.NEEDS_NEGOTIATION,
+          deliveryQuoteExpiresAt: null,
+          deliveryQuoteVersion: 0,
+          deliveryQuoteConfirmedVersion: null,
+          deliveryQuoteConfirmedAt: null,
+          deliveryInternalJson: evaluated.internalJson,
+          deliveryConfigId: evaluated.configId,
+          total: order.subtotal,
+          status: OrderStatus.AWAITING_DELIVERY_CONFIRMATION,
+        },
+      });
+
+      await tx.payment.create({
+        data: {
+          orderId: order.id,
+          method: order.payments[0]?.method ?? PaymentMethod.PAYSTACK,
+          provider: order.payments[0]?.provider ?? 'paystack',
+          amount: order.subtotal,
+          currency: order.currency,
+          status: PaymentStatus.PENDING,
+        },
+      });
+
+      return tx.order.findUniqueOrThrow({
+        where: { id: order.id },
+        include: orderInclude,
+      });
+    });
+
+    await this.audit.log({
+      actorUserId: userId,
+      action: 'delivery.address_updated',
+      entityType: 'Order',
+      entityId: order.id,
+      ip,
+      metadata: {
+        shippingState: address.shippingState,
+        shippingLga: address.shippingLga,
+        shippingCity: address.shippingCity,
+        previousQuoteInvalidated: true,
+      },
+    });
+
+    return toPublicOrder(updated);
+  }
+
+  /**
+   * Customer explicitly accepts the current staff-entered delivery quote.
+   * Payment remains blocked until this succeeds against the current quote version.
+   */
+  async acceptDeliveryQuote(userId: string, orderId: string, ip?: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: orderInclude,
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (order.fulfillmentMethod !== FulfillmentMethod.DELIVERY) {
+      throw new BadRequestException('Order is not a delivery order.');
+    }
+    if (
+      order.status === OrderStatus.PAID ||
+      order.status === OrderStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Order is not eligible for quote confirmation.');
+    }
+
+    const status = order.deliveryFeeStatus;
+    if (
+      status === DeliveryFeeStatus.EXPIRED ||
+      (order.deliveryQuoteExpiresAt &&
+        order.deliveryQuoteExpiresAt.getTime() <= Date.now())
+    ) {
+      throw new BadRequestException(
+        'Your delivery quote has expired. Please contact Sales Staff for an updated quote.',
+      );
+    }
+    if (
+      status !== DeliveryFeeStatus.QUOTE_AVAILABLE &&
+      status !== DeliveryFeeStatus.FEE_SET_BY_STAFF
+    ) {
+      throw new BadRequestException(
+        'Please contact our Sales Staff for your delivery quote.',
+      );
+    }
+    if (order.deliveryFee == null) {
+      throw new BadRequestException(
+        'Please contact our Sales Staff for your delivery quote.',
+      );
+    }
+
+    // Legacy fees set before quote-versioning used version 0 — promote so confirm can arm payment.
+    let version = order.deliveryQuoteVersion ?? 0;
+    if (version < 1) {
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          deliveryQuoteVersion: 1,
+          deliveryQuoteConfirmedVersion: null,
+          deliveryQuoteConfirmedAt: null,
+        },
+      });
+      version = 1;
+    }
+
+    if (order.deliveryQuoteConfirmedVersion === version) {
+      const current = await this.prisma.order.findFirstOrThrow({
+        where: { id: order.id, userId },
+        include: orderInclude,
+      });
+      return toPublicOrder(current);
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        deliveryQuoteVersion: version,
+        deliveryQuoteConfirmedVersion: version,
+        deliveryQuoteConfirmedAt: new Date(),
+      },
+      include: orderInclude,
+    });
+
+    await this.audit.log({
+      actorUserId: userId,
+      action: 'delivery.customer_confirm_quote',
+      entityType: 'Order',
+      entityId: order.id,
+      ip,
+      metadata: {
+        deliveryQuoteVersion: version,
+        deliveryFee: order.deliveryFee.toString(),
+        total: order.total.toString(),
+      },
+    });
+
+    return toPublicOrder(updated);
   }
 
   assertPayable(
     order: {
+      id?: string;
       userId: string;
       deliveryFeeStatus: DeliveryFeeStatus;
       deliveryQuoteExpiresAt?: Date | null;
+      deliveryQuoteVersion?: number | null;
+      deliveryQuoteConfirmedVersion?: number | null;
+      deliveryFee?: { toString(): string } | string | null;
       status: OrderStatus;
     },
     userId: string,
@@ -314,16 +625,32 @@ export class OrdersService {
     if (order.userId !== userId) {
       throw new ForbiddenException('Order access denied.');
     }
-    if (!isPaymentAllowed(order)) {
-      throw new BadRequestException(
-        'Please contact AWOH-B to discuss your delivery fee before payment.',
-      );
-    }
     if (
       order.status === OrderStatus.PAID ||
       order.status === OrderStatus.CANCELLED
     ) {
       throw new BadRequestException('Payment is not available for this order.');
+    }
+    if (!isPaymentAllowed(order)) {
+      if (order.id) {
+        void this.audit
+          .log({
+            actorUserId: userId,
+            action: 'payment.blocked_delivery_quote',
+            entityType: 'Order',
+            entityId: order.id,
+            metadata: {
+              deliveryFeeStatus: order.deliveryFeeStatus,
+              deliveryQuoteVersion: order.deliveryQuoteVersion ?? 0,
+              deliveryQuoteConfirmedVersion:
+                order.deliveryQuoteConfirmedVersion ?? null,
+            },
+          })
+          .catch(() => undefined);
+      }
+      throw new BadRequestException(
+        'Delivery quote must be confirmed before payment is available.',
+      );
     }
   }
 }

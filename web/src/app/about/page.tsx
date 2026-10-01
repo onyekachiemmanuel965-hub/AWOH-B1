@@ -2,8 +2,10 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/navigation/site-header";
 import { SiteFooter } from "@/components/navigation/site-footer";
 import { Container, Section } from "@/components/layout/primitives";
+import { PageImageBanner } from "@/components/content/page-image-banner";
 import { createPageMetadata, siteConfig } from "@/lib/metadata";
 import { whyPoints } from "@/lib/home-content";
+import { fetchStorefrontImages, storefrontImageMap } from "@/lib/api";
 
 export const metadata = createPageMetadata({
   title: "About",
@@ -17,11 +19,17 @@ const linkPrimary =
 const linkSecondary =
   "inline-flex h-11 items-center justify-center rounded-md border border-border-strong bg-transparent px-5 type-button text-primary no-underline transition-colors hover:bg-surface-muted";
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const images = await fetchStorefrontImages("about");
+  const banner = storefrontImageMap(images).get("about.hero");
+
   return (
     <>
       <SiteHeader />
       <main id="main-content">
+        {banner?.isCustom ? (
+          <PageImageBanner src={banner.url} alt={banner.altText} />
+        ) : null}
         <Section className="border-b border-border bg-surface-muted !py-14 md:!py-20">
           <Container width="wide">
             <p className="type-caption uppercase tracking-[0.16em] text-accent">

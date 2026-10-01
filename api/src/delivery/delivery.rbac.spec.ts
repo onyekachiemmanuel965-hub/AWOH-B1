@@ -63,6 +63,6 @@ describe('staff vs customer delivery visibility', () => {
     expect(raw).not.toContain('weightFactorPerKg');
     expect(raw).not.toContain('negotiationThreshold');
     expect(customer.deliveryFee).toBeNull();
-    expect(customer.message).toMatch(/contact AWOH-B/i);
+    expect(customer.message).toMatch(/sales staff/i);
   });
 });

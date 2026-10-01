@@ -8,6 +8,7 @@ import { FeaturedCollection } from "@/components/home/featured-collection";
 import { WhyAwoh } from "@/components/home/why-awoh";
 import { InspirationGallery } from "@/components/home/inspiration-gallery";
 import { HomeCta } from "@/components/home/home-cta";
+import { fetchStorefrontImages, storefrontImageMap } from "@/lib/api";
 
 export const metadata = createPageMetadata({
   title: `${siteConfig.name} | Premium Architectural Tiles & Materials`,
@@ -16,17 +17,21 @@ export const metadata = createPageMetadata({
   path: "/",
 });
 
-export default function HomePage() {
+export default async function HomePage() {
+  const images = await fetchStorefrontImages("home");
+  const map = storefrontImageMap(images);
+  const hero = map.get("home.hero");
+
   return (
     <>
       <SiteHeader />
       <main id="main-content">
-        <HomeHero />
+        <HomeHero imageSrc={hero?.url} imageAlt={hero?.altText} />
         <BrandIntro />
         <CategoryDiscovery />
         <FeaturedCollection />
         <WhyAwoh />
-        <InspirationGallery />
+        <InspirationGallery images={images} />
         <HomeCta />
       </main>
       <SiteFooter />

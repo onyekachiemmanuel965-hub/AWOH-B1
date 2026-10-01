@@ -6,12 +6,14 @@ import { AuthModule } from '../auth/auth.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { DeliveryModule } from '../delivery/delivery.module';
 import { AuditModule } from '../audit/audit.module';
+import { LocationsModule } from '../locations/locations.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
     AuditModule,
+    LocationsModule,
     forwardRef(() => DeliveryModule),
     forwardRef(() => PaymentsModule),
   ],

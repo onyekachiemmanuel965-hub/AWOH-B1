@@ -230,6 +230,11 @@ model Order {
   /// Authoritative delivery fee when confirmed; null when unconfirmed/negotiation
   deliveryFee           Decimal?
   deliveryQuoteExpiresAt DateTime?
+  /// Increments whenever staff sets/updates the delivery fee (stale-confirmation guard).
+  deliveryQuoteVersion  Int                @default(0)
+  /// Last quote version the customer explicitly accepted; null = not confirmed.
+  deliveryQuoteConfirmedVersion Int?
+  deliveryQuoteConfirmedAt DateTime?
   /// Internal snapshot (weights/distance/rates) — NEVER expose to customers
   deliveryInternalJson  String?
   deliveryConfigId      String?
@@ -238,16 +243,24 @@ model Order {
   currency              String
   contactEmail          String
   contactPhone          String?
+  /// Order-scoped delivery destination snapshot (not mutable profile address).
   shippingLine1         String?
   shippingCity          String?
+  shippingLga           String?
   shippingState         String?
   shippingNotes         String?
+  shippingStateId       String?
+  shippingLgaId         String?
+  shippingTownId        String?
   /// Client idempotency key — unique per user when present
   idempotencyKey        String?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   user                  User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   deliveryConfig        DeliveryConfig?    @relation(fields: [deliveryConfigId], references: [id], onDelete: SetNull)
+  shippingStateRef      NigState?          @relation(fields: [shippingStateId], references: [id], onDelete: SetNull)
+  shippingLgaRef        NigLga?            @relation(fields: [shippingLgaId], references: [id], onDelete: SetNull)
+  shippingTownRef       NigTown?           @relation(fields: [shippingTownId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
   payments              Payment[]
   receipt               Receipt?
@@ -257,18 +270,25 @@ model Order {
   @@index([status])
   @@index([createdAt])
   @@index([deliveryFeeStatus])
+  @@index([shippingStateId])
+  @@index([shippingLgaId])
+  @@index([shippingTownId])
 }
 
 model OrderItem {
-  id           String  @id @default(cuid())
-  orderId      String
-  productId    String
-  productName  String
-  productSlug  String
-  quantity     Int
-  unitPrice    Decimal
-  lineTotal    Decimal
-  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id             String  @id @default(cuid())
+  orderId        String
+  productId      String
+  productName    String
+  productSlug    String
+  /// Snapshot of catalogue SKU / public code at order time (nullable for legacy rows).
+  productSku     String?
+  /// Snapshot of tile size label at order time (nullable for legacy rows).
+  tileSizeLabel  String?
+  quantity       Int
+  unitPrice      Decimal
+  lineTotal      Decimal
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([productId])
@@ -341,3 +361,62 @@ model AuditLog {
   @@index([createdAt])
   @@index([action])
 }
+
+/// Nigerian State / FCT — location hierarchy for delivery destinations.
+model NigState {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  lgas      NigLga[]
+  orders    Order[]
+
+  @@index([active, sortOrder])
+}
+
+model NigLga {
+  id        String    @id @default(cuid())
+  stateId   String
+  code      String
+  name      String
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  state     NigState  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  towns     NigTown[]
+  orders    Order[]
+
+  @@unique([stateId, code])
+  @@index([stateId, active, sortOrder])
+}
+
+model NigTown {
+  id        String  @id @default(cuid())
+  lgaId     String
+  code      String
+  name      String
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
+  lga       NigLga  @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  orders    Order[]
+
+  @@unique([lgaId, code])
+  @@index([lgaId, active, sortOrder])
+}
+
+/// Storefront / page imagery managed by Content Manager + Admin (content.manage).
+/// Keys are stable slots (e.g. home.hero); url null means use the built-in placeholder.
+model StorefrontImage {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  page        String
+  label       String
+  url         String?
+  altText     String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([page])
+}
+

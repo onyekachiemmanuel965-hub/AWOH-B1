@@ -417,19 +417,36 @@ export class PaymentsService {
 
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
-      include: { items: true, payments: true, receipt: true },
+      include: {
+        items: true,
+        payments: true,
+        receipt: true,
+        user: { select: { firstName: true, lastName: true, email: true } },
+      },
     });
 
     if (!order.receipt) {
       const pdfPath = await this.receipts.generatePdf(order);
       const email = await this.receipts.sendEmailReceipt(order, pdfPath);
-      await this.prisma.receipt.create({
-        data: {
-          orderId: order.id,
-          storagePath: pdfPath,
-          emailStatus: email.status,
-        },
-      });
+      try {
+        await this.prisma.receipt.create({
+          data: {
+            orderId: order.id,
+            storagePath: pdfPath,
+            emailStatus: email.status,
+          },
+        });
+      } catch (err) {
+        // Concurrent finalize: unique orderId — keep first receipt, do not duplicate.
+        if (
+          !(
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002'
+          )
+        ) {
+          throw err;
+        }
+      }
     }
 
     return this.prisma.order.findUniqueOrThrow({
@@ -444,6 +461,18 @@ export class PaymentsService {
       throw new BadRequestException('Receipt is not available yet.');
     }
     return order.receipt;
+  }
+
+  /** PDF download helper — includes order number for the attachment filename. */
+  async getReceiptDownloadForUser(userId: string, orderId: string) {
+    const order = await this.orders.getOwnedEntity(userId, orderId);
+    if (order.status !== OrderStatus.PAID || !order.receipt) {
+      throw new BadRequestException('Receipt is not available yet.');
+    }
+    return {
+      receipt: order.receipt,
+      orderNumber: order.orderNumber,
+    };
   }
 
   /** Integrity helper for tests */

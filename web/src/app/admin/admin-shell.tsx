@@ -14,6 +14,21 @@ import { LoadingSpinner } from "@/components/feedback/feedback";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
+function pathAllowed(pathname: string, nav: AdminAccessModule[]): boolean {
+  if (!pathname.startsWith("/admin")) return false;
+  const normalized =
+    pathname.length > 1 && pathname.endsWith("/")
+      ? pathname.slice(0, -1)
+      : pathname;
+  if (normalized === "/admin") return true;
+  const prefixes = [...nav.map((m) => m.href)].sort(
+    (a, b) => b.length - a.length,
+  );
+  return prefixes.some(
+    (href) => normalized === href || normalized.startsWith(`${href}/`),
+  );
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -54,6 +69,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!access?.nav?.length || !pathname) return;
+    if (!pathAllowed(pathname, access.nav)) {
+      router.replace("/admin");
+    }
+  }, [access, pathname, router]);
 
   if (loading) {
     return (

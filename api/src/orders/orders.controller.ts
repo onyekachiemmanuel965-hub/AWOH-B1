@@ -4,13 +4,14 @@ import {
   Get,
   Param,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { createReadStream, existsSync } from 'fs';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateOrderDto, UpdateDeliveryAddressDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OriginGuard } from '../auth/guards/origin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -46,6 +47,27 @@ export class OrdersController {
     return this.orders.getForUser(user.userId, orderId);
   }
 
+  /** Customer accepts the current staff-entered delivery quote (version-aware). */
+  @Post(':orderId/delivery/accept-quote')
+  acceptDeliveryQuote(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('orderId') orderId: string,
+    @Req() req: Request,
+  ) {
+    return this.orders.acceptDeliveryQuote(user.userId, orderId, req.ip);
+  }
+
+  /** Customer updates delivery address (invalidates prior quote). */
+  @Post(':orderId/delivery/address')
+  updateDeliveryAddress(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('orderId') orderId: string,
+    @Body() dto: UpdateDeliveryAddressDto,
+    @Req() req: Request,
+  ) {
+    return this.orders.updateDeliveryAddress(user.userId, orderId, dto, req.ip);
+  }
+
   @Post(':orderId/payment/initialize')
   initializePayment(
     @CurrentUser() user: AuthUserPayload,
@@ -73,17 +95,20 @@ export class OrdersController {
     @Param('orderId') orderId: string,
     @Res() res: Response,
   ) {
-    const receipt = await this.payments.getReceiptForUser(user.userId, orderId);
+    const { receipt, orderNumber } =
+      await this.payments.getReceiptDownloadForUser(user.userId, orderId);
     const path = receipt.storagePath;
     if (!existsSync(path)) {
       res.status(404).json({ message: 'Receipt file not found.' });
       return;
     }
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="receipt-${orderId}.pdf"`,
+    const safeName = `AWOH-B-Receipt-${orderNumber}.pdf`.replace(
+      /[^\w.\-]+/g,
+      '_',
     );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
     createReadStream(path).pipe(res);
   }
 }

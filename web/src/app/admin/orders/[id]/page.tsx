@@ -35,6 +35,22 @@ export default function AdminOrderDetailPage() {
   const canManage =
     user?.role === "ADMIN" || user?.role === "SALES_STAFF";
 
+  type DeliveryInternalSummary = {
+    suggestedFee?: string | null;
+    appliedFee?: number | null;
+    totalWeightKg?: number | null;
+    distanceKm?: number | null;
+    distanceAvailable?: boolean;
+    reason?: string;
+    requiresStaffQuote?: boolean;
+    status?: string;
+  };
+
+  function asInternalSummary(value: unknown): DeliveryInternalSummary | null {
+    if (!value || typeof value !== "object") return null;
+    return value as DeliveryInternalSummary;
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -45,6 +61,13 @@ export default function AdminOrderDetailPage() {
         try {
           const d = await fetchDeliveryInternal(params.id);
           setInternal(d.internal);
+          const summary = asInternalSummary(d.internal);
+          const suggested =
+            summary?.suggestedFee ??
+            (summary?.appliedFee != null ? String(summary.appliedFee) : "");
+          if (suggested) {
+            setFee((prev) => prev || suggested);
+          }
         } catch {
           setInternal(null);
         }
@@ -112,11 +135,15 @@ export default function AdminOrderDetailPage() {
     order.status === "AWAITING_OFFLINE_PAYMENT" &&
     order.payment?.method === "OFFLINE_CASH";
 
+  const isDelivery = order.fulfillmentMethod === "DELIVERY";
   const showDeliveryOps =
     canManage &&
-    order.fulfillmentMethod === "DELIVERY" &&
+    isDelivery &&
+    order.status !== "PAID" &&
+    order.status !== "CANCELLED" &&
     (order.deliveryFeeStatus === "NEEDS_NEGOTIATION" ||
       order.deliveryFeeStatus === "QUOTE_AVAILABLE" ||
+      order.deliveryFeeStatus === "FEE_SET_BY_STAFF" ||
       order.deliveryFeeStatus === "UNCONFIRMED" ||
       order.deliveryFeeStatus === "EXPIRED");
 
@@ -200,40 +227,158 @@ export default function AdminOrderDetailPage() {
         </section>
       ) : null}
 
-      {showDeliveryOps ? (
-        <section className="border border-border bg-surface p-4 space-y-4">
-          <h2 className="type-h3 text-primary">Delivery negotiation</h2>
-          {internal ? (
-            <pre className="overflow-x-auto bg-surface-muted p-3 type-caption text-text">
-              {JSON.stringify(internal, null, 2)}
-            </pre>
+      <section className="border border-border bg-surface p-4 space-y-4">
+        <div>
+          <h2 className="type-h3 text-primary">Delivery quote</h2>
+          {!isDelivery ? (
+            <p className="mt-2 type-body-sm text-text-muted">
+              This order is <strong>Pickup</strong> — no delivery quote is
+              required. Create a checkout order with fulfillment set to{" "}
+              <strong>Delivery</strong> to enter a delivery fee here.
+            </p>
+          ) : order.status === "PAID" ? (
+            <p className="mt-2 type-body-sm text-text-muted">
+              This delivery order is already paid. Delivery fee:{" "}
+              {order.deliveryFee != null
+                ? formatMoney(order.deliveryFee, order.currency)
+                : "—"}
+            </p>
+          ) : !canManage ? (
+            <p className="mt-2 type-body-sm text-text-muted">
+              Only Admin or Sales Staff can set the delivery quote.
+            </p>
+          ) : showDeliveryOps ? (
+            <p className="mt-2 type-body-sm text-text-muted">
+              Set the agreed delivery fee after discussing with the customer.
+              The backend recalculates the order total. The customer must review
+              and confirm the quote before Pay Now unlocks. Changing the fee
+              invalidates any previous customer confirmation.
+            </p>
           ) : (
-            <p className="type-body-sm text-text-muted">
-              No internal delivery snapshot available.
+            <p className="mt-2 type-body-sm text-text-muted">
+              Delivery quote is not editable for status{" "}
+              {order.deliveryFeeStatus}.
             </p>
           )}
-          <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={onOverride}>
-            <Input
-              id="fee"
-              label="Negotiated fee (NGN)"
-              value={fee}
-              onChange={(e) => setFee(e.target.value)}
-              required
-            />
-            <Input
-              id="reason"
-              label="Reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            <div className="flex items-end">
-              <Button type="submit" loading={busy}>
-                Set delivery fee
-              </Button>
-            </div>
-          </form>
-        </section>
-      ) : null}
+        </div>
+
+        {isDelivery &&
+        (order.shippingLine1 ||
+          order.shippingCity ||
+          order.shippingLga ||
+          order.shippingState) ? (
+          <div className="space-y-1 type-body-sm">
+            <p className="type-caption text-text-muted">Shipping address</p>
+            <p>
+              <span className="text-text-muted">State: </span>
+              {order.shippingState || "—"}
+            </p>
+            <p>
+              <span className="text-text-muted">LGA: </span>
+              {order.shippingLga || "—"}
+            </p>
+            <p>
+              <span className="text-text-muted">Town/City: </span>
+              {order.shippingCity || "—"}
+            </p>
+            <p>
+              <span className="text-text-muted">Address: </span>
+              {order.shippingLine1 || "—"}
+            </p>
+            {order.shippingNotes ? (
+              <p className="text-text-muted">
+                Instructions: {order.shippingNotes}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showDeliveryOps ? (
+          <>
+            {(() => {
+              const summary = asInternalSummary(internal);
+              if (!summary) {
+                return (
+                  <p className="type-body-sm text-text-muted">
+                    No internal delivery estimate available. Enter a fee from
+                    sales discussion.
+                  </p>
+                );
+              }
+              const suggested =
+                summary.suggestedFee ??
+                (summary.appliedFee != null
+                  ? String(summary.appliedFee)
+                  : null);
+              return (
+                <dl className="grid gap-2 sm:grid-cols-2 type-body-sm border border-border bg-surface-muted p-3">
+                  <div>
+                    <dt className="type-caption text-text-muted">
+                      Suggested fee (internal)
+                    </dt>
+                    <dd>
+                      {suggested
+                        ? formatMoney(suggested, order.currency)
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="type-caption text-text-muted">
+                      Est. weight (kg)
+                    </dt>
+                    <dd>
+                      {summary.totalWeightKg != null
+                        ? String(summary.totalWeightKg)
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="type-caption text-text-muted">
+                      Est. distance (km)
+                    </dt>
+                    <dd>
+                      {summary.distanceKm != null
+                        ? String(summary.distanceKm)
+                        : summary.distanceAvailable === false
+                          ? "Unavailable"
+                          : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="type-caption text-text-muted">
+                      Calculator note
+                    </dt>
+                    <dd>{summary.reason ?? summary.status ?? "—"}</dd>
+                  </div>
+                </dl>
+              );
+            })()}
+            <form
+              className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
+              onSubmit={onOverride}
+            >
+              <Input
+                id="fee"
+                label="Delivery quote for customer (NGN)"
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
+                required
+              />
+              <Input
+                id="reason"
+                label="Reason (optional)"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <div className="flex items-end">
+                <Button type="submit" loading={busy}>
+                  Set delivery fee
+                </Button>
+              </div>
+            </form>
+          </>
+        ) : null}
+      </section>
     </div>
   );
 }

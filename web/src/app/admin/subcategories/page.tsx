@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   createSubcategory,
   fetchAdminCategories,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/admin-api";
 
 export default function AdminSubcategoriesPage() {
+  const { user } = useAuth();
   const { push } = useToast();
   const [cats, setCats] = useState<Array<{ id: string; name: string }>>([]);
   const [rows, setRows] = useState<
@@ -52,8 +54,9 @@ export default function AdminSubcategoriesPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load();
-  }, []);
+  }, [user]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();

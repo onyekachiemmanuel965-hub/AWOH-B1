@@ -36,9 +36,10 @@ export default function AdminProductsPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-6">
@@ -47,6 +48,10 @@ export default function AdminProductsPage() {
           <h1 className="type-h2 text-primary">Products</h1>
           <p className="mt-1 type-body-sm text-text-muted">
             Catalog CMS — public DTOs never expose stock or weight.
+          </p>
+          <p className="mt-1 type-body-sm text-text-muted">
+            Open a product to update details, price, stock, or availability
+            (by your role).
           </p>
         </div>
         {canCreate ? (
@@ -89,6 +94,7 @@ export default function AdminProductsPage() {
                 <th className="px-3 py-2 type-caption">Price</th>
                 <th className="px-3 py-2 type-caption">Status</th>
                 <th className="px-3 py-2 type-caption">Stock</th>
+                <th className="px-3 py-2 type-caption">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -113,6 +119,14 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-3 py-2 type-body-sm">
                     {p.stockQuantity ?? "—"}
+                  </td>
+                  <td className="px-3 py-2 type-body-sm">
+                    <Link
+                      href={`/admin/products/${p.id}`}
+                      className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 type-caption text-primary no-underline hover:border-primary"
+                    >
+                      Edit
+                    </Link>
                   </td>
                 </tr>
               ))}

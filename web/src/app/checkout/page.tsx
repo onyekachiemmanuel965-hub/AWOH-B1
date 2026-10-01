@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/navigation/site-header";
 import { SiteFooter } from "@/components/navigation/site-footer";
 import { Container, Section } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   EmptyState,
@@ -19,6 +20,12 @@ import { useToast } from "@/components/feedback/toast";
 import { formatMoney } from "@/lib/money";
 import { resolveProducts, type PublicProduct } from "@/lib/api";
 import { createOrder, initializePayment } from "@/lib/orders-api";
+import {
+  fetchLgas,
+  fetchStates,
+  fetchTowns,
+  type LocationOption,
+} from "@/lib/locations-api";
 
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
@@ -37,11 +44,19 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [line1, setLine1] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  const [states, setStates] = useState<LocationOption[]>([]);
+  const [lgas, setLgas] = useState<LocationOption[]>([]);
+  const [towns, setTowns] = useState<LocationOption[]>([]);
+  const [stateId, setStateId] = useState("");
+  const [lgaId, setLgaId] = useState("");
+  const [townId, setTownId] = useState("");
+  const [loadingLgas, setLoadingLgas] = useState(false);
+  const [loadingTowns, setLoadingTowns] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -72,6 +87,81 @@ export default function CheckoutPage() {
     };
   }, [items]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchStates();
+        if (!cancelled) setStates(data);
+      } catch {
+        if (!cancelled) setLocationError("Unable to load Nigerian states.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!stateId) {
+      setLgas([]);
+      setLgaId("");
+      setTowns([]);
+      setTownId("");
+      return;
+    }
+    let cancelled = false;
+    setLoadingLgas(true);
+    setLgaId("");
+    setTownId("");
+    setTowns([]);
+    (async () => {
+      try {
+        const data = await fetchLgas(stateId);
+        if (!cancelled) {
+          setLgas(data);
+          setLocationError(null);
+        }
+      } catch {
+        if (!cancelled) setLocationError("Unable to load LGAs for this state.");
+      } finally {
+        if (!cancelled) setLoadingLgas(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stateId]);
+
+  useEffect(() => {
+    if (!lgaId) {
+      setTowns([]);
+      setTownId("");
+      return;
+    }
+    let cancelled = false;
+    setLoadingTowns(true);
+    setTownId("");
+    (async () => {
+      try {
+        const data = await fetchTowns(lgaId);
+        if (!cancelled) {
+          setTowns(data);
+          setLocationError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setLocationError("Unable to load towns/cities for this LGA.");
+        }
+      } finally {
+        if (!cancelled) setLoadingTowns(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lgaId]);
+
   const lines = useMemo(() => {
     return items
       .map((line) => {
@@ -95,11 +185,24 @@ export default function CheckoutPage() {
   const displaySubtotal = lines.reduce((s, r) => s + r.lineTotal, 0);
   const currency = lines[0]?.product.currency ?? "NGN";
 
+  const deliveryReady =
+    fulfillment === "PICKUP" ||
+    (Boolean(stateId) &&
+      Boolean(lgaId) &&
+      Boolean(townId) &&
+      line1.trim().length >= 3);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (items.length === 0) {
       setError("Your cart is empty.");
+      return;
+    }
+    if (fulfillment === "DELIVERY" && !deliveryReady) {
+      setError(
+        "Select State, LGA, Town/City, and enter your full street address.",
+      );
       return;
     }
     setPending(true);
@@ -118,9 +221,10 @@ export default function CheckoutPage() {
         paymentMethod,
         contactEmail: email,
         contactPhone: phone || undefined,
+        shippingStateId: fulfillment === "DELIVERY" ? stateId : undefined,
+        shippingLgaId: fulfillment === "DELIVERY" ? lgaId : undefined,
+        shippingTownId: fulfillment === "DELIVERY" ? townId : undefined,
         shippingLine1: fulfillment === "DELIVERY" ? line1 : undefined,
-        shippingCity: fulfillment === "DELIVERY" ? city : undefined,
-        shippingState: fulfillment === "DELIVERY" ? state : undefined,
         shippingNotes: notes || undefined,
         idempotencyKey,
       });
@@ -144,7 +248,17 @@ export default function CheckoutPage() {
         return;
       }
 
-      push({ title: "Order placed", tone: "success" });
+      push({
+        title:
+          fulfillment === "DELIVERY"
+            ? "Delivery quote requested"
+            : "Order placed",
+        description:
+          fulfillment === "DELIVERY"
+            ? "Contact Sales Staff to agree your delivery fee."
+            : undefined,
+        tone: "success",
+      });
       router.push(`/account/orders/${order.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed.");
@@ -180,7 +294,8 @@ export default function CheckoutPage() {
               <h1 className="mt-2 type-h1 text-primary">Confirm your order</h1>
               <p className="mt-3 type-body text-text-muted">
                 Prices are confirmed by the catalog service at order creation.
-                Display totals below are illustrative until the order is placed.
+                Delivery fees are agreed with Sales Staff after you submit your
+                destination.
               </p>
 
               {items.length === 0 ? (
@@ -226,18 +341,6 @@ export default function CheckoutPage() {
                       />
                       Delivery
                     </label>
-                    {fulfillment === "DELIVERY" ? (
-                      <p className="type-caption text-text-muted">
-                        Delivery fees are calculated by AWOH-B after you place
-                        the order. If discussion is required, payment stays
-                        blocked until the fee is confirmed. Delivery fee:
-                        calculated on the server.
-                      </p>
-                    ) : (
-                      <p className="type-caption text-text-muted">
-                        Pickup — delivery fee: not applicable.
-                      </p>
-                    )}
                   </fieldset>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -261,40 +364,114 @@ export default function CheckoutPage() {
                   </div>
 
                   {fulfillment === "DELIVERY" ? (
-                    <div className="space-y-4">
+                    <section
+                      className="space-y-4 border border-border bg-surface-muted p-5"
+                      aria-labelledby="delivery-address-heading"
+                    >
+                      <div>
+                        <h2
+                          id="delivery-address-heading"
+                          className="type-h3 text-primary"
+                        >
+                          Delivery address
+                        </h2>
+                        <p className="mt-1 type-body-sm text-text-muted">
+                          Select State → LGA → Town/City, then enter your street
+                          address. Payment stays locked until Sales Staff enters
+                          your delivery quote and you confirm it.
+                        </p>
+                      </div>
+
+                      <Select
+                        id="checkout-state"
+                        label="State"
+                        required
+                        value={stateId}
+                        onChange={(e) => setStateId(e.target.value)}
+                        placeholder="Select State"
+                        options={states.map((s) => ({
+                          value: s.id,
+                          label: s.name,
+                        }))}
+                      />
+
+                      <Select
+                        id="checkout-lga"
+                        label="Local Government Area"
+                        required
+                        value={lgaId}
+                        disabled={!stateId || loadingLgas}
+                        onChange={(e) => setLgaId(e.target.value)}
+                        placeholder={
+                          loadingLgas ? "Loading LGAs…" : "Select LGA"
+                        }
+                        options={lgas.map((l) => ({
+                          value: l.id,
+                          label: l.name,
+                        }))}
+                        hint={
+                          !stateId
+                            ? "Select a state first."
+                            : loadingLgas
+                              ? "Loading…"
+                              : undefined
+                        }
+                      />
+
+                      <Select
+                        id="checkout-town"
+                        label="Town / City / Area"
+                        required
+                        value={townId}
+                        disabled={!lgaId || loadingTowns}
+                        onChange={(e) => setTownId(e.target.value)}
+                        placeholder={
+                          loadingTowns
+                            ? "Loading towns/areas…"
+                            : "Select Town / City / Area"
+                        }
+                        options={towns.map((t) => ({
+                          value: t.id,
+                          label: t.name,
+                        }))}
+                        hint={
+                          !lgaId
+                            ? "Select an LGA first."
+                            : loadingTowns
+                              ? "Loading…"
+                              : undefined
+                        }
+                      />
+
                       <Input
                         id="checkout-line1"
-                        label="Address"
+                        label="Apartment / House / Street Address"
                         autoComplete="street-address"
                         required
                         value={line1}
                         onChange={(e) => setLine1(e.target.value)}
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Input
-                          id="checkout-city"
-                          label="City"
-                          autoComplete="address-level2"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                        />
-                        <Input
-                          id="checkout-state"
-                          label="State"
-                          autoComplete="address-level1"
-                          value={state}
-                          onChange={(e) => setState(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
 
-                  <Input
-                    id="checkout-notes"
-                    label="Notes (optional)"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
+                      <Input
+                        id="checkout-notes"
+                        label="Additional delivery instructions (optional)"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        hint="Landmark, estate, gate colour, etc."
+                      />
+
+                      {locationError ? (
+                        <p className="type-caption text-error" role="alert">
+                          {locationError}
+                        </p>
+                      ) : null}
+                    </section>
+                  ) : (
+                    <p className="type-caption text-text-muted">
+                      Pickup — delivery fee: not applicable. You can pay online
+                      right after placing the order.
+                    </p>
+                  )}
 
                   <fieldset className="space-y-3">
                     <legend className="type-label text-primary">
@@ -326,8 +503,15 @@ export default function CheckoutPage() {
                     </p>
                   ) : null}
 
-                  <Button type="submit" className="w-full" loading={pending}>
-                    Place order
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    loading={pending}
+                    disabled={!deliveryReady}
+                  >
+                    {fulfillment === "DELIVERY"
+                      ? "Request Delivery Quote"
+                      : "Place order"}
                   </Button>
                 </form>
               )}
@@ -352,15 +536,21 @@ export default function CheckoutPage() {
                   <span>Estimated subtotal</span>
                   <span>{formatMoney(displaySubtotal, currency)}</span>
                 </p>
-                <p className="mt-2 type-caption text-text-muted">
-                  {fulfillment === "PICKUP"
-                    ? "Delivery fee: not applicable."
-                    : "Delivery fee will be confirmed by the server after checkout. Pay only when the fee is approved."}
-                </p>
-                <p className="mt-2 type-caption text-text-muted">
-                  Final totals are calculated by the server when you place the
-                  order.
-                </p>
+                {fulfillment === "PICKUP" ? (
+                  <p className="mt-2 type-caption text-text-muted">
+                    Delivery fee: not applicable.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-1 border border-border bg-surface-muted p-3">
+                    <p className="type-label text-primary">
+                      Delivery: pending sales quote
+                    </p>
+                    <p className="type-caption text-text-muted">
+                      After you request a quote, contact Sales Staff. Pay online
+                      only after you confirm the agreed fee on your order page.
+                    </p>
+                  </div>
+                )}
               </div>
             </aside>
           </Container>

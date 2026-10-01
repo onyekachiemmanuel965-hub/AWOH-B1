@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/layout/primitives";
-import { fetchCategories, type PublicCategory } from "@/lib/api";
+import { fetchCategories, mediaUrl, type PublicCategory } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/feedback/feedback";
 
@@ -65,9 +65,9 @@ export async function CategoryDiscovery() {
             href={`/categories/${primary.slug}`}
             name={primary.name}
             phrase={primary.description ?? "Explore this collection"}
-            imageSrc={
-              primary.imageUrl ?? "/images/placeholders/category-tiles.svg"
-            }
+            imageSrc={mediaUrl(
+              primary.imageUrl ?? "/images/placeholders/category-tiles.svg",
+            )}
             className="min-h-[22rem] lg:col-span-7 lg:min-h-[36rem]"
             priority
           />
@@ -78,9 +78,10 @@ export async function CategoryDiscovery() {
                   href={`/categories/${cat.slug}`}
                   name={cat.name}
                   phrase={cat.description ?? "Explore this collection"}
-                  imageSrc={
-                    cat.imageUrl ?? "/images/placeholders/category-surfaces.svg"
-                  }
+                  imageSrc={mediaUrl(
+                    cat.imageUrl ??
+                      "/images/placeholders/category-surfaces.svg",
+                  )}
                   className="min-h-[14rem] lg:min-h-[calc((36rem-2.5rem)/3)]"
                 />
               </li>

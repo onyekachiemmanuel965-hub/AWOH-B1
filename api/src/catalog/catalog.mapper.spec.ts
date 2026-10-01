@@ -1,4 +1,4 @@
-import { toPublicProduct } from './catalog.mapper';
+import { toPublicProduct, toPublicSpecs } from './catalog.mapper';
 import {
   CatalogStatus,
   ProductAvailability,
@@ -54,5 +54,24 @@ describe('catalog mapper weight privacy', () => {
     expect(JSON.stringify(product)).not.toMatch(
       /weightPerCartonKg|totalWeight|distanceKm|surcharge/,
     );
+  });
+
+  it('strips import provenance from public specs', () => {
+    const specs = toPublicSpecs(
+      JSON.stringify({
+        sku: '12513',
+        finish: 'matte',
+        importSource: 'AWOH-B-TILE-CATALOGUE.pdf',
+        importBatch: 'catalogue-final-575',
+        sourcePage: 12,
+        catalogueSku: '12513',
+        catalogueCategory: 'PORCELAIN RUSTIC FLOOR TILES',
+        catalogueSize: '120x60',
+      }),
+    );
+    expect(specs).toEqual({ sku: '12513', finish: 'matte' });
+    expect(specs).not.toHaveProperty('importSource');
+    expect(specs).not.toHaveProperty('importBatch');
+    expect(specs).not.toHaveProperty('sourcePage');
   });
 });

@@ -1,8 +1,17 @@
 import { Currency, formatMoney } from "./money";
 
-const API_BASE =
+const API_ORIGIN =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "http://localhost:4000";
+
+/**
+ * Browser: same-origin (Next rewrites /api + /uploads → API) so auth cookies stick.
+ * Server components / RSC: call the API origin directly.
+ */
+function resolveApiBase() {
+  if (typeof window !== "undefined") return "";
+  return API_ORIGIN;
+}
 
 export type PublicCategory = {
   id: string;
@@ -71,7 +80,7 @@ export type ProductQuery = {
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${resolveApiBase()}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
@@ -87,7 +96,16 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function getApiBase() {
-  return API_BASE;
+  return resolveApiBase();
+}
+
+/** Resolve API upload paths for next/image; keep local /images/ and absolute URLs as-is. */
+export function mediaUrl(path: string | null | undefined) {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  if (path.startsWith("/images/")) return path;
+  // Same-origin /uploads via Next rewrite in the browser; absolute on the server.
+  return `${resolveApiBase()}${path}`;
 }
 
 export async function fetchCategories() {
@@ -138,6 +156,31 @@ export async function fetchProduct(slug: string) {
   return apiFetch<PublicProduct>(`/api/v1/products/${slug}`, {
     cache: "no-store",
   });
+}
+
+export type StorefrontImage = {
+  key: string;
+  page: string;
+  label: string;
+  url: string;
+  altText: string;
+  isCustom: boolean;
+};
+
+export async function fetchStorefrontImages(page?: string) {
+  const qs = page ? `?page=${encodeURIComponent(page)}` : "";
+  try {
+    return await apiFetch<StorefrontImage[]>(
+      `/api/v1/storefront-images${qs}`,
+      { cache: "no-store" },
+    );
+  } catch {
+    return [] as StorefrontImage[];
+  }
+}
+
+export function storefrontImageMap(images: StorefrontImage[]) {
+  return new Map(images.map((i) => [i.key, i]));
 }
 
 export async function resolveProducts(ids: string[]) {

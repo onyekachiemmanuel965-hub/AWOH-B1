@@ -47,8 +47,63 @@ describe('DeliveryService privacy + gates', () => {
     );
     const dto = await service.getCustomerDelivery('u1', 'o1');
     expect(dto.deliveryFee).toBeNull();
-    expect(dto.message).toMatch(/contact AWOH-B/i);
+    expect(dto.message).toMatch(/sales staff/i);
     expect(JSON.stringify(dto)).not.toContain('99999');
+  });
+
+  it('evaluateForOrderLines always requires staff quote but keeps internal estimate', async () => {
+    const prisma = {
+      deliveryConfig: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'cfg1',
+          ratePerKm: { toString: () => '500.00' },
+          weightFactorPerKg: { toString: () => '0' },
+          minFee: { toString: () => '0' },
+          maxFee: null,
+          negotiationThreshold: { toString: () => '250000.00' },
+          quoteTtlMinutes: 120,
+          currency: 'NGN',
+          active: true,
+        }),
+      },
+    };
+    const service = new DeliveryService(
+      prisma as never,
+      { get: () => undefined } as never,
+      { log: jest.fn() } as never,
+      {
+        resolveDistance: jest.fn().mockResolvedValue({
+          distanceKm: 12,
+          provider: 'mock',
+        }),
+      } as never,
+    );
+
+    const result = await service.evaluateForOrderLines(
+      [
+        {
+          productId: 'p1',
+          quantity: 2,
+          weightPerCartonKg: 29,
+          productName: 'Tile',
+        },
+      ],
+      {
+        shippingLine1: '12 Road',
+        shippingCity: 'Lagos',
+        shippingState: 'LA',
+      },
+    );
+
+    expect(result.status).toBe(DeliveryFeeStatus.NEEDS_NEGOTIATION);
+    expect(result.deliveryFee).toBeNull();
+    expect(result.deliveryMinor).toBe(0n);
+    expect(result.expiresAt).toBeNull();
+    const internal = JSON.parse(result.internalJson!);
+    expect(internal.requiresStaffQuote).toBe(true);
+    expect(internal.suggestedFee).toBeTruthy();
+    expect(internal.totalWeightKg).toBe(58);
+    expect(internal.distanceKm).toBe(12);
   });
 
   it('getCustomerDelivery enforces ownership', async () => {
@@ -76,6 +131,8 @@ describe('DeliveryService privacy + gates', () => {
       deliveryFeeStatus: DeliveryFeeStatus.NEEDS_NEGOTIATION,
       deliveryFee: null,
       deliveryQuoteExpiresAt: null,
+      deliveryQuoteVersion: 0,
+      deliveryQuoteConfirmedVersion: null,
       deliveryInternalJson: null,
       subtotal: { toString: () => '10000.00' },
       total: { toString: () => '10000.00' },
@@ -126,6 +183,8 @@ describe('DeliveryService privacy + gates', () => {
               ...order,
               deliveryFeeStatus: DeliveryFeeStatus.FEE_SET_BY_STAFF,
               deliveryFee: { toString: () => '7500.00' },
+              deliveryQuoteVersion: 1,
+              deliveryQuoteConfirmedVersion: null,
               total: { toString: () => '17500.00' },
               status: OrderStatus.PENDING_PAYMENT,
               payments: [
@@ -172,8 +231,17 @@ describe('DeliveryService privacy + gates', () => {
       }),
     );
     expect(result.deliveryFeeStatus).toBe(DeliveryFeeStatus.FEE_SET_BY_STAFF);
-    expect(result.paymentAllowed).toBe(true);
+    expect(result.paymentAllowed).toBe(false);
+    expect(result.deliveryQuoteStatus).toBe('DELIVERY_QUOTE_AVAILABLE');
     expect(result.total).toBe('17500.00');
+    expect(orderUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryQuoteVersion: 1,
+          deliveryQuoteConfirmedVersion: null,
+        }),
+      }),
+    );
     expect(JSON.stringify(result)).not.toContain('totalWeight');
   });
 

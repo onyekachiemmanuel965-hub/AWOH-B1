@@ -9,10 +9,12 @@ import {
 } from "@/components/feedback/feedback";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-provider";
 import { fetchAdminOrders, type StaffOrder } from "@/lib/admin-api";
 import { formatMoney } from "@/lib/money";
 
 export default function AdminOrdersPage() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
   const [status, setStatus] = useState("");
@@ -44,9 +46,10 @@ export default function AdminOrdersPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-6">
@@ -131,10 +134,18 @@ export default function AdminOrdersPage() {
                 <th className="px-3 py-2 type-caption">Payment</th>
                 <th className="px-3 py-2 type-caption">Delivery</th>
                 <th className="px-3 py-2 type-caption">Total</th>
+                <th className="px-3 py-2 type-caption">Action</th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
+              {orders.map((o) => {
+                const needsQuote =
+                  o.fulfillmentMethod === "DELIVERY" &&
+                  o.status !== "PAID" &&
+                  (o.deliveryFeeStatus === "NEEDS_NEGOTIATION" ||
+                    o.deliveryFeeStatus === "EXPIRED" ||
+                    o.deliveryFeeStatus === "UNCONFIRMED");
+                return (
                 <tr key={o.id} className="border-t border-border">
                   <td className="px-3 py-2 type-body-sm">
                     <Link href={`/admin/orders/${o.id}`} className="text-primary">
@@ -149,12 +160,34 @@ export default function AdminOrdersPage() {
                   <td className="px-3 py-2 type-body-sm">
                     {o.payment ? `${o.payment.method} · ${o.payment.status}` : "—"}
                   </td>
-                  <td className="px-3 py-2 type-body-sm">{o.deliveryFeeStatus}</td>
+                  <td className="px-3 py-2 type-body-sm">
+                    {o.fulfillmentMethod === "DELIVERY"
+                      ? o.deliveryFeeStatus
+                      : "Pickup"}
+                  </td>
                   <td className="px-3 py-2 type-body-sm">
                     {formatMoney(o.total, o.currency)}
                   </td>
+                  <td className="px-3 py-2 type-body-sm">
+                    {needsQuote ? (
+                      <Link
+                        href={`/admin/orders/${o.id}`}
+                        className="text-accent underline-offset-2 hover:underline"
+                      >
+                        Set delivery quote
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/admin/orders/${o.id}`}
+                        className="text-text-muted hover:text-primary"
+                      >
+                        Open
+                      </Link>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

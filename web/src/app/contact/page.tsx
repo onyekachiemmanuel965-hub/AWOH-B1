@@ -2,8 +2,10 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/navigation/site-header";
 import { SiteFooter } from "@/components/navigation/site-footer";
 import { Container, Section } from "@/components/layout/primitives";
+import { PageImageBanner } from "@/components/content/page-image-banner";
 import { createPageMetadata, siteConfig } from "@/lib/metadata";
 import { ContactForm } from "./contact-form";
+import { fetchStorefrontImages, storefrontImageMap } from "@/lib/api";
 
 export const metadata = createPageMetadata({
   title: "Contact",
@@ -25,11 +27,17 @@ const contactFields = [
   { label: "WhatsApp / other channel", value: "[PLACEHOLDER]" },
 ] as const;
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const images = await fetchStorefrontImages("contact");
+  const banner = storefrontImageMap(images).get("contact.hero");
+
   return (
     <>
       <SiteHeader />
       <main id="main-content">
+        {banner?.isCustom ? (
+          <PageImageBanner src={banner.url} alt={banner.altText} />
+        ) : null}
         <Section className="border-b border-border bg-surface-muted !py-14 md:!py-20">
           <Container width="wide">
             <p className="type-caption uppercase tracking-[0.16em] text-accent">

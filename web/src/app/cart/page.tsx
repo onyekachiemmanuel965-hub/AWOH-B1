@@ -15,7 +15,7 @@ import {
 } from "@/components/feedback/feedback";
 import { useCart } from "@/components/cart/cart-provider";
 import { formatMoney } from "@/lib/money";
-import { resolveProducts, type PublicProduct } from "@/lib/api";
+import { resolveProducts, mediaUrl, type PublicProduct } from "@/lib/api";
 
 export default function CartPage() {
   const { items, setQuantity, removeItem, clear } = useCart();
@@ -112,7 +112,7 @@ export default function CartPage() {
                       <div className="relative aspect-square overflow-hidden bg-surface-muted">
                         {product.primaryImage ? (
                           <Image
-                            src={product.primaryImage}
+                            src={mediaUrl(product.primaryImage)}
                             alt={product.images[0]?.altText ?? product.name}
                             fill
                             unoptimized={product.primaryImage.endsWith(".svg")}

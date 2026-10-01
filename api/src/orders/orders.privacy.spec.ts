@@ -58,7 +58,8 @@ describe('customer order/delivery privacy (deliveryInternalJson)', () => {
     contactPhone: null,
     shippingLine1: '1 Demo St',
     shippingCity: 'Lagos',
-    shippingState: 'LA',
+    shippingLga: 'Eti-Osa',
+    shippingState: 'Lagos',
     shippingNotes: null,
     idempotencyKey: null,
     createdAt: new Date(),
@@ -102,7 +103,7 @@ describe('customer order/delivery privacy (deliveryInternalJson)', () => {
     expect(dto).not.toHaveProperty('deliveryConfigId');
     assertNoInternalLeak(dto);
     expect(dto.deliveryFee).toBeNull();
-    expect(dto.deliveryMessage).toMatch(/contact AWOH-B/i);
+    expect(dto.deliveryMessage).toMatch(/sales staff/i);
     expect(dto.paymentAllowed).toBe(false);
   });
 
@@ -111,7 +112,7 @@ describe('customer order/delivery privacy (deliveryInternalJson)', () => {
       DeliveryFeeStatus.NEEDS_NEGOTIATION,
       null,
       'NGN',
-      'Please contact AWOH-B to discuss your delivery fee before payment.',
+      'Please contact the sales team for a delivery quote before you can pay online.',
     );
     assertNoInternalLeak(dto);
     expect(Object.keys(dto).sort()).toEqual([
@@ -129,9 +130,26 @@ describe('customer order/delivery privacy (deliveryInternalJson)', () => {
       deliveryFeeStatus: DeliveryFeeStatus.FEE_SET_BY_STAFF,
       deliveryFee: { toString: () => '7500.00' },
       total: { toString: () => '17500.00' },
+      deliveryQuoteVersion: 1,
+      deliveryQuoteConfirmedVersion: 1,
     } as never);
     expect(dto.deliveryFee).toBe('7500.00');
     expect(dto.paymentAllowed).toBe(true);
+    expect(dto.deliveryQuoteStatus).toBe('DELIVERY_QUOTE_CONFIRMED');
     assertNoInternalLeak(dto);
+  });
+
+  it('staff fee without customer confirmation keeps paymentAllowed false', () => {
+    const dto = toPublicOrder({
+      ...baseOrder,
+      status: OrderStatus.PENDING_PAYMENT,
+      deliveryFeeStatus: DeliveryFeeStatus.FEE_SET_BY_STAFF,
+      deliveryFee: { toString: () => '7500.00' },
+      total: { toString: () => '17500.00' },
+      deliveryQuoteVersion: 1,
+      deliveryQuoteConfirmedVersion: null,
+    } as never);
+    expect(dto.paymentAllowed).toBe(false);
+    expect(dto.deliveryQuoteStatus).toBe('DELIVERY_QUOTE_AVAILABLE');
   });
 });

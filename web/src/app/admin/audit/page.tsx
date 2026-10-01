@@ -7,9 +7,11 @@ import {
   LoadingSpinner,
 } from "@/components/feedback/feedback";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-provider";
 import { fetchAudit } from "@/lib/admin-api";
 
 export default function AdminAuditPage() {
+  const { user } = useAuth();
   const [rows, setRows] = useState<
     Array<{
       id: string;
@@ -40,8 +42,9 @@ export default function AdminAuditPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load(1);
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-6">

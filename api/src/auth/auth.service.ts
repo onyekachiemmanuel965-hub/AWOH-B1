@@ -120,6 +120,7 @@ export class AuthService {
   ): Promise<AuthResult> {
     this.assertRateLimit(`login:${rateKey}`, 12, 15 * 60 * 1000);
     const email = dto.email.trim().toLowerCase();
+    const password = dto.password.trim();
 
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -134,13 +135,13 @@ export class AuthService {
     if (!user) {
       // Burn a compare cycle against a valid dummy hash (not a real account).
       await verifyPassword(
-        dto.password,
+        password,
         '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
       );
       invalid();
     }
 
-    const ok = await verifyPassword(dto.password, user!.passwordHash);
+    const ok = await verifyPassword(password, user!.passwordHash);
     if (!ok) invalid();
 
     if (user!.status !== UserStatus.ACTIVE) {

@@ -62,7 +62,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         refresh();
         push({
           title: "Added to cart",
-          description: "Item saved locally until checkout is available.",
+          description: "You can review quantities anytime in your cart.",
           tone: "success",
         });
       },

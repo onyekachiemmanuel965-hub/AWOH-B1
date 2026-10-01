@@ -4,8 +4,11 @@ import { cn } from "@/lib/cn";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { tileAspectRatioCss } from "@/lib/tile-size";
+import { AddToCartIconButton } from "@/components/product/add-to-cart-icon-button";
 
 export type ProductCardProps = {
+  /** Required for add-to-cart; omit on design-system demos without cart. */
+  productId?: string;
   name: string;
   category?: string;
   subcategory?: string;
@@ -39,6 +42,7 @@ const availabilityBadge: Record<
  * Image frame uses product tile aspect ratio without geometric stretch.
  */
 export function ProductCard({
+  productId,
   name,
   category,
   subcategory,
@@ -55,6 +59,10 @@ export function ProductCard({
   tileSizeLabel,
   tileAspectRatio,
 }: ProductCardProps) {
+  const canAdd =
+    Boolean(productId) &&
+    availability !== "out-of-stock";
+
   const action = href ? (
     <Link
       href={href}
@@ -94,7 +102,7 @@ export function ProductCard({
             alt={imageAlt ?? name}
             fill
             unoptimized={imageSrc.endsWith(".svg")}
-            className="object-contain transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] group-hover:scale-[1.02]"
+            className="object-cover transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] group-hover:scale-[1.02]"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
@@ -106,8 +114,18 @@ export function ProductCard({
           </div>
         )}
         {badge ? (
-          <div className="absolute left-3 top-3">
+          <div className="absolute left-3 top-3 z-[1]">
             <Badge variant={badge} />
+          </div>
+        ) : null}
+        {productId ? (
+          <div className="absolute bottom-3 right-3 z-[2]">
+            <AddToCartIconButton
+              productId={productId}
+              productName={name}
+              disabled={!canAdd}
+              className="shadow-sm"
+            />
           </div>
         ) : null}
       </div>
@@ -118,7 +136,15 @@ export function ProductCard({
             {[category, subcategory].filter(Boolean).join(" · ")}
           </p>
         )}
-        <h3 className="type-h4 text-primary">{name}</h3>
+        <h3 className="type-h4 text-primary">
+          {href ? (
+            <Link href={href} className="text-inherit no-underline hover:underline">
+              {name}
+            </Link>
+          ) : (
+            name
+          )}
+        </h3>
         {tileSizeLabel ? (
           <p className="type-caption text-text-muted">{tileSizeLabel}</p>
         ) : null}

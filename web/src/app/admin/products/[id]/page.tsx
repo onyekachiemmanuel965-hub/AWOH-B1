@@ -49,6 +49,7 @@ export default function AdminProductDetailPage() {
   const canInventory =
     user?.role === "ADMIN" || user?.role === "INVENTORY_MANAGER";
   const canPrice = user?.role === "ADMIN";
+  const canEdit = canContent || canInventory || canPrice;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,8 +72,9 @@ export default function AdminProductDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
+    if (!user) return;
     void load();
-  }, [load]);
+  }, [load, user]);
 
   async function saveContent(e: FormEvent) {
     e.preventDefault();
@@ -193,6 +195,14 @@ export default function AdminProductDetailPage() {
         </p>
       ) : null}
 
+      {!canEdit ? (
+        <p className="border border-border bg-surface-muted px-4 py-3 type-body-sm text-text-muted">
+          Read-only view. Your role can browse this product but cannot change
+          content, price, or inventory. Ask an Admin, Content Manager, or
+          Inventory Manager to make updates.
+        </p>
+      ) : null}
+
       {canContent ? (
         <form className="space-y-3 border border-border bg-surface p-4" onSubmit={saveContent}>
           <h2 className="type-h3 text-primary">Content</h2>
@@ -296,17 +306,22 @@ export default function AdminProductDetailPage() {
 
       {canInventory ? (
         <form className="space-y-3 border border-border bg-surface p-4" onSubmit={saveInventory}>
-          <h2 className="type-h3 text-primary">Inventory (internal)</h2>
+          <h2 className="type-h3 text-primary">Stock &amp; availability</h2>
+          <p className="type-body-sm text-text-muted">
+            Restock quantity and mark the product Available or Unavailable for
+            the storefront.
+          </p>
           <Input id="stock" label="Stock quantity" value={stock} onChange={(e) => setStock(e.target.value)} />
-          <label className="block">
-            <span className="type-caption text-text-muted">Availability</span>
+          <label className="block" htmlFor="edit-availability">
+            <span className="type-caption text-text-muted">Sell status</span>
             <select
+              id="edit-availability"
               className="mt-1 w-full border border-border bg-surface px-3 py-2"
               value={availability}
               onChange={(e) => setAvailability(e.target.value)}
             >
-              <option value="AVAILABLE">AVAILABLE</option>
-              <option value="UNAVAILABLE">UNAVAILABLE</option>
+              <option value="AVAILABLE">Available</option>
+              <option value="UNAVAILABLE">Unavailable</option>
             </select>
           </label>
           <Input

@@ -7,8 +7,10 @@ import { PaymentsModule } from './payments/payments.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { AuditModule } from './audit/audit.module';
 import { AdminModule } from './admin/admin.module';
+import { ContentModule } from './content/content.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
+import { LocationsModule } from './locations/locations.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -20,9 +22,11 @@ import { HealthController } from './health.controller';
     AuthModule,
     AuditModule,
     DeliveryModule,
+    LocationsModule,
     OrdersModule,
     PaymentsModule,
     AdminModule,
+    ContentModule,
   ],
   controllers: [HealthController],
 })

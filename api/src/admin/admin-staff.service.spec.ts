@@ -224,15 +224,33 @@ describe('AdminStaffService safety', () => {
       lastName: 'Stock',
       email: 'ivy@example.com',
       status: UserStatus.ACTIVE,
-      role: { code: ROLE_CODES.INVENTORY_MANAGER },
+      role: {
+        code: ROLE_CODES.INVENTORY_MANAGER,
+        permissions: [
+          { permission: { code: 'inventory.read' } },
+          { permission: { code: 'inventory.manage' } },
+        ],
+      },
     });
     const { service } = buildService({ findUnique });
     const access = await service.getMyAccess('inv1');
     expect(access.roleLabel).toBe('Inventory Manager');
-    expect(access.modules.map((m) => m.label)).toEqual(
-      expect.arrayContaining(['Dashboard', 'Products', 'Inventory']),
-    );
+    expect(access.modules.map((m) => m.label)).toEqual([
+      'Dashboard',
+      'Products',
+      'Inventory',
+    ]);
     expect(access.modules.map((m) => m.label)).not.toContain('Staff');
+    expect(access.modules.map((m) => m.label)).not.toContain('Delivery');
+    expect(access.allowedLabels).toEqual(
+      expect.arrayContaining(['Dashboard', 'Inventory']),
+    );
+    expect(access.restrictedLabels).toEqual(
+      expect.arrayContaining(['Staff', 'Delivery', 'Payments', 'CMS']),
+    );
+    expect(access.permissions).toEqual(
+      expect.arrayContaining(['inventory.read', 'inventory.manage']),
+    );
   });
 
   it('denies CUSTOMER my-access', async () => {

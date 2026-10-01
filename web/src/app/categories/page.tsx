@@ -5,7 +5,8 @@ import { SiteFooter } from "@/components/navigation/site-footer";
 import { Container, Section } from "@/components/layout/primitives";
 import { EmptyState, ErrorState } from "@/components/feedback/feedback";
 import { createPageMetadata } from "@/lib/metadata";
-import { fetchCategories, type PublicCategory } from "@/lib/api";
+import { fetchCategories, fetchStorefrontImages, mediaUrl, storefrontImageMap, type PublicCategory } from "@/lib/api";
+import { PageImageBanner } from "@/components/content/page-image-banner";
 import { cn } from "@/lib/cn";
 
 export const metadata = createPageMetadata({
@@ -18,9 +19,18 @@ export const metadata = createPageMetadata({
 export default async function CategoriesPage() {
   let categories: PublicCategory[] = [];
   let error: string | null = null;
+  let pageBanner: { url: string; altText: string } | null = null;
 
   try {
-    categories = await fetchCategories();
+    const [cats, storefront] = await Promise.all([
+      fetchCategories(),
+      fetchStorefrontImages("categories"),
+    ]);
+    categories = cats;
+    const banner = storefrontImageMap(storefront).get("categories.hero");
+    if (banner?.isCustom) {
+      pageBanner = { url: banner.url, altText: banner.altText };
+    }
   } catch {
     error = "Unable to load categories right now. Please try again shortly.";
   }
@@ -29,6 +39,9 @@ export default async function CategoriesPage() {
     <>
       <SiteHeader />
       <main id="main-content">
+        {pageBanner ? (
+          <PageImageBanner src={pageBanner.url} alt={pageBanner.altText} />
+        ) : null}
         <Section className="border-b border-border bg-surface-muted !py-12 md:!py-16">
           <Container width="wide">
             <p className="type-caption uppercase tracking-[0.16em] text-accent">
@@ -70,8 +83,9 @@ export default async function CategoriesPage() {
 }
 
 function CategoryCard({ category }: { category: PublicCategory }) {
-  const imageSrc =
-    category.imageUrl ?? "/images/placeholders/category-tiles.svg";
+  const imageSrc = mediaUrl(
+    category.imageUrl ?? "/images/placeholders/category-tiles.svg",
+  );
   const href = `/categories/${category.slug}`;
 
   return (

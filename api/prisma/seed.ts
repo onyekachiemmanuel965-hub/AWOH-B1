@@ -6,6 +6,8 @@ import {
   TileSize,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { spawnSync } from 'child_process';
+import * as path from 'path';
 import { EXPLICIT_TILE_CARTON_WEIGHTS_KG } from './seed-weights';
 
 /**
@@ -67,7 +69,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'inventory.manage',
     'orders.read',
     'account.read',
-    'delivery.read',
   ],
   SALES_STAFF: [
     'products.read',
@@ -541,11 +542,25 @@ async function seedDeliveryConfig() {
   );
 }
 
+async function seedNigeriaLocations() {
+  // Prefer ward-locality dataset (State → LGA → Town/City/Area).
+  // Kept as a dedicated script so locations can be rebuilt without wiping catalog.
+  const script = path.join(__dirname, 'seed-nigeria-locations.cjs');
+  const result = spawnSync(process.execPath, [script], {
+    stdio: 'inherit',
+    cwd: path.join(__dirname, '..'),
+  });
+  if (result.status !== 0) {
+    throw new Error('Nigerian location seed failed.');
+  }
+}
+
 async function main() {
   await seedRolesAndPermissions();
   await seedDevUsers();
   await seedCatalog();
   await seedDeliveryConfig();
+  await seedNigeriaLocations();
 }
 
 main()

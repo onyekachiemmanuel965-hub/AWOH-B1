@@ -3,11 +3,20 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser = require('cookie-parser');
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import { setDefaultResultOrder } from 'dns';
 import express = require('express');
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { SafeHttpExceptionFilter } from './common/safe-http-exception.filter';
 import { securityHeadersMiddleware } from './common/security-headers.middleware';
+
+// Prefer IPv4 for outbound HTTPS (avoids intermittent undici "fetch failed"
+// when IPv6 routes are broken or flaky on Windows).
+try {
+  setDefaultResultOrder('ipv4first');
+} catch {
+  /* Node < 17 — ignore */
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

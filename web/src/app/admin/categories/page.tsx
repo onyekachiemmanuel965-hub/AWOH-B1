@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   createCategory,
   deactivateCategory,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/admin-api";
 
 export default function AdminCategoriesPage() {
+  const { user } = useAuth();
   const { push } = useToast();
   const [rows, setRows] = useState<
     Array<{
@@ -44,8 +46,9 @@ export default function AdminCategoriesPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load();
-  }, []);
+  }, [user]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();

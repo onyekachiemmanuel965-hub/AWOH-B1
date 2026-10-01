@@ -17,7 +17,27 @@ export function isStaffRole(role: string | undefined | null): boolean {
   return !!role && STAFF.includes(role as StaffRole);
 }
 
-async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function refreshAccessCookie() {
+  const res = await fetch(`${getApiBase()}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error("Session expired.");
+  }
+}
+
+async function adminFetch<T>(
+  path: string,
+  init?: RequestInit,
+  retried = false,
+): Promise<T> {
   const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
     credentials: "include",
@@ -37,6 +57,14 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
       body = JSON.parse(text);
     } catch {
       body = { message: text };
+    }
+  }
+  if (res.status === 401 && !retried) {
+    try {
+      await refreshAccessCookie();
+      return adminFetch<T>(path, init, true);
+    } catch {
+      /* fall through to normal error */
     }
   }
   if (!res.ok) {
@@ -91,6 +119,19 @@ export type StaffOrder = {
   total: string;
   currency: string;
   contactEmail: string;
+  contactPhone?: string | null;
+  shippingLine1?: string | null;
+  shippingCity?: string | null;
+  shippingLga?: string | null;
+  shippingState?: string | null;
+  shippingNotes?: string | null;
+  deliveryAddress?: {
+    state: string | null;
+    lga: string | null;
+    townCity: string | null;
+    address: string | null;
+    deliveryInstructions: string | null;
+  } | null;
   customer: {
     id: string;
     email: string;
@@ -337,12 +378,7 @@ export function fetchInventory(params: Record<string, string | number | undefine
   );
 }
 
-export function mediaUrl(path: string) {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  if (path.startsWith("/images/")) return path;
-  return `${getApiBase()}${path}`;
-}
+export { mediaUrl } from "./api";
 
 export type StaffUser = {
   id: string;
@@ -389,6 +425,9 @@ export type MyAdminAccess = {
   lastName: string;
   modules: AdminAccessModule[];
   nav: AdminAccessModule[];
+  permissions?: string[];
+  allowedLabels?: string[];
+  restrictedLabels?: string[];
 };
 
 export function fetchStaff(params: Record<string, string | number | undefined> = {}) {
@@ -419,3 +458,50 @@ export function updateStaffStatus(id: string, isActive: boolean) {
 export function fetchMyAdminAccess() {
   return adminFetch<MyAdminAccess>("/api/v1/admin/me/access");
 }
+
+export type AdminStorefrontImage = {
+  key: string;
+  page: string;
+  label: string;
+  description: string;
+  url: string;
+  altText: string;
+  isCustom: boolean;
+  placeholderPath: string;
+  updatedAt: string | null;
+};
+
+export function fetchAdminStorefrontImages() {
+  return adminFetch<AdminStorefrontImage[]>(
+    "/api/v1/admin/storefront-images",
+  );
+}
+
+export function uploadStorefrontImage(
+  key: string,
+  file: File,
+  altText?: string,
+) {
+  const form = new FormData();
+  form.append("file", file);
+  if (altText?.trim()) form.append("altText", altText.trim());
+  return adminFetch<AdminStorefrontImage>(
+    `/api/v1/admin/storefront-images/${encodeURIComponent(key)}/upload`,
+    { method: "POST", body: form },
+  );
+}
+
+export function updateStorefrontImageAlt(key: string, altText: string) {
+  return adminFetch<AdminStorefrontImage>(
+    `/api/v1/admin/storefront-images/${encodeURIComponent(key)}`,
+    { method: "PATCH", body: JSON.stringify({ altText }) },
+  );
+}
+
+export function clearStorefrontImage(key: string) {
+  return adminFetch<AdminStorefrontImage>(
+    `/api/v1/admin/storefront-images/${encodeURIComponent(key)}`,
+    { method: "DELETE" },
+  );
+}
+

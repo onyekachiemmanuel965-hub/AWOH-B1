@@ -17,6 +17,7 @@ import {
 import {
   modulesForRole,
   navModulesForRole,
+  restrictedModulesForRole,
   roleDisplayLabel,
   type AdminAccessModule,
 } from './admin-access';
@@ -46,6 +47,10 @@ export type MyAccessDto = {
   lastName: string;
   modules: AdminAccessModule[];
   nav: AdminAccessModule[];
+  /** Permission codes from the authenticated role (informational). */
+  permissions: string[];
+  allowedLabels: string[];
+  restrictedLabels: string[];
 };
 
 @Injectable()
@@ -58,7 +63,11 @@ export class AdminStaffService {
   async getMyAccess(userId: string): Promise<MyAccessDto> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { role: true },
+      include: {
+        role: {
+          include: { permissions: { include: { permission: true } } },
+        },
+      },
     });
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Authentication required.');
@@ -66,14 +75,20 @@ export class AdminStaffService {
     if (user.role.code === ROLE_CODES.CUSTOMER) {
       throw new ForbiddenException('Insufficient permissions.');
     }
+    const modules = modulesForRole(user.role.code);
+    const restricted = restrictedModulesForRole(user.role.code);
+    const permissions = user.role.permissions.map((rp) => rp.permission.code);
     return {
       role: user.role.code,
       roleLabel: roleDisplayLabel(user.role.code),
       isActive: true,
       firstName: user.firstName,
       lastName: user.lastName,
-      modules: modulesForRole(user.role.code),
+      modules,
       nav: navModulesForRole(user.role.code),
+      permissions,
+      allowedLabels: modules.map((m) => m.label),
+      restrictedLabels: restricted.map((m) => m.label),
     };
   }
 

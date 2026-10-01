@@ -12,6 +12,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { FulfillmentMethod, PaymentMethod } from '@prisma/client';
@@ -52,20 +53,30 @@ export class CreateOrderDto {
   @MaxLength(40)
   contactPhone?: string;
 
-  @IsOptional()
+  /** Required for DELIVERY — validated against NigState / NigLga / NigTown. */
+  @ValidateIf((o: CreateOrderDto) => o.fulfillmentMethod === FulfillmentMethod.DELIVERY)
   @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shippingStateId?: string;
+
+  @ValidateIf((o: CreateOrderDto) => o.fulfillmentMethod === FulfillmentMethod.DELIVERY)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shippingLgaId?: string;
+
+  @ValidateIf((o: CreateOrderDto) => o.fulfillmentMethod === FulfillmentMethod.DELIVERY)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shippingTownId?: string;
+
+  @ValidateIf((o: CreateOrderDto) => o.fulfillmentMethod === FulfillmentMethod.DELIVERY)
+  @IsString()
+  @MinLength(3)
   @MaxLength(200)
   shippingLine1?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  shippingCity?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  shippingState?: string;
 
   @IsOptional()
   @IsString()
@@ -78,4 +89,31 @@ export class CreateOrderDto {
   @MinLength(8)
   @MaxLength(120)
   idempotencyKey?: string;
+}
+
+export class UpdateDeliveryAddressDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shippingStateId!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shippingLgaId!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  shippingTownId!: string;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  shippingLine1!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  shippingNotes?: string;
 }

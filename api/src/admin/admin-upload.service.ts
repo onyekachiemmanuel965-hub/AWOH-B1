@@ -37,6 +37,12 @@ export class AdminUploadService {
     return dir;
   }
 
+  contentDir() {
+    const dir = join(this.uploadsRoot(), 'content');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
   /**
    * MIME + extension validation. Never trusts path components in originalname.
    * Returns the safe extension to use for storage (not user filename).
@@ -91,15 +97,26 @@ export class AdminUploadService {
 
   /** Always generates a server-controlled filename — never uses user path. */
   async saveProductImage(file: Express.Multer.File): Promise<string> {
+    return this.saveImageUnder(file, 'products', this.productsDir());
+  }
+
+  /** Storefront / page CMS imagery — same validation rules as product images. */
+  async saveContentImage(file: Express.Multer.File): Promise<string> {
+    return this.saveImageUnder(file, 'content', this.contentDir());
+  }
+
+  private async saveImageUnder(
+    file: Express.Multer.File,
+    publicSubdir: 'products' | 'content',
+    root: string,
+  ): Promise<string> {
     if (!file) {
       throw new BadRequestException('Empty upload.');
     }
     const ext = this.validateImage(file);
     const name = `${Date.now().toString(36)}_${randomBytes(8).toString('hex')}${ext}`;
-    const full = join(this.productsDir(), name);
+    const full = join(root, name);
 
-    // Defense-in-depth: resolved path must stay under productsDir
-    const root = this.productsDir();
     if (!full.startsWith(root)) {
       throw new BadRequestException('Unsafe storage path rejected.');
     }
@@ -111,6 +128,6 @@ export class AdminUploadService {
     } else {
       throw new BadRequestException('Empty upload.');
     }
-    return `/uploads/products/${name}`;
+    return `/uploads/${publicSubdir}/${name}`;
   }
 }

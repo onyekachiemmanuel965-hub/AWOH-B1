@@ -27,6 +27,7 @@ type StaffOrder = {
   contactPhone: string | null;
   shippingLine1: string | null;
   shippingCity: string | null;
+  shippingLga?: string | null;
   shippingState: string | null;
   shippingNotes: string | null;
   createdAt: Date;
@@ -82,8 +83,19 @@ export function toStaffOrder(order: StaffOrder) {
     contactPhone: order.contactPhone,
     shippingLine1: order.shippingLine1,
     shippingCity: order.shippingCity,
+    shippingLga: order.shippingLga ?? null,
     shippingState: order.shippingState,
     shippingNotes: order.shippingNotes,
+    deliveryAddress:
+      order.fulfillmentMethod === FulfillmentMethod.DELIVERY
+        ? {
+            state: order.shippingState,
+            lga: order.shippingLga ?? null,
+            townCity: order.shippingCity,
+            address: order.shippingLine1,
+            deliveryInstructions: order.shippingNotes,
+          }
+        : null,
     customer: order.user
       ? {
           id: order.user.id,

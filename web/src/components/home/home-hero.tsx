@@ -1,16 +1,30 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/layout/primitives";
+import { mediaUrl } from "@/lib/api";
 
 const ctaPrimary =
   "inline-flex h-11 items-center justify-center rounded-md border border-primary bg-primary px-5 type-button text-text-inverse no-underline shadow-xs transition-colors hover:bg-primary-hover";
 const ctaSecondary =
   "inline-flex h-11 items-center justify-center rounded-md border border-border-strong bg-surface/90 px-5 type-button text-primary no-underline transition-colors hover:bg-surface";
 
+const FALLBACK_SRC = "/images/placeholders/hero-surface.svg";
+const FALLBACK_ALT =
+  "Architectural surface placeholder representing premium tile materials";
+
 /**
  * Full-bleed premium hero — brand-forward, single composition.
+ * Image comes from storefront CMS (`home.hero`) with placeholder fallback.
  */
-export function HomeHero() {
+export function HomeHero({
+  imageSrc = FALLBACK_SRC,
+  imageAlt = FALLBACK_ALT,
+}: {
+  imageSrc?: string;
+  imageAlt?: string;
+}) {
+  const src = mediaUrl(imageSrc) || FALLBACK_SRC;
+
   return (
     <section
       aria-labelledby="hero-heading"
@@ -18,8 +32,8 @@ export function HomeHero() {
     >
       <div className="absolute inset-0">
         <Image
-          src="/images/placeholders/hero-surface.svg"
-          alt="Architectural surface placeholder representing premium tile materials"
+          src={src}
+          alt={imageAlt}
           fill
           priority
           unoptimized

@@ -63,11 +63,12 @@ export class DeliveryService {
     switch (status) {
       case DeliveryFeeStatus.NEEDS_NEGOTIATION:
       case DeliveryFeeStatus.UNCONFIRMED:
+        return 'Please contact our Sales Staff for your delivery quote.';
       case DeliveryFeeStatus.EXPIRED:
-        return 'Please contact AWOH-B to discuss your delivery fee before payment.';
+        return 'Your delivery quote has expired. Please contact Sales Staff for an updated quote.';
       case DeliveryFeeStatus.QUOTE_AVAILABLE:
       case DeliveryFeeStatus.FEE_SET_BY_STAFF:
-        return 'Delivery fee confirmed.';
+        return 'Your delivery quote is ready. Please review and confirm it before paying.';
       case DeliveryFeeStatus.NOT_REQUIRED:
         return 'Pickup selected — delivery fee not required.';
       default:
@@ -189,30 +190,19 @@ export class DeliveryService {
         : null,
     });
 
-    const status =
-      calc.status === 'QUOTE_AVAILABLE'
-        ? DeliveryFeeStatus.QUOTE_AVAILABLE
-        : DeliveryFeeStatus.NEEDS_NEGOTIATION;
-
-    const expiresAt =
-      status === DeliveryFeeStatus.QUOTE_AVAILABLE
-        ? new Date(Date.now() + cfg.quoteTtlMinutes * 60_000)
-        : null;
-
+    // Business rule: delivery always needs a staff/sales quote before payment.
+    // Keep the calculator estimate in internalJson for Admin/Sales only.
     return {
-      status,
-      deliveryFee:
-        status === DeliveryFeeStatus.QUOTE_AVAILABLE && calc.appliedFee != null
-          ? new Prisma.Decimal(calc.appliedFee.toFixed(2))
-          : null,
-      deliveryMinor:
-        status === DeliveryFeeStatus.QUOTE_AVAILABLE && calc.appliedFee != null
-          ? toMinorUnits(calc.appliedFee.toFixed(2))
-          : 0n,
-      expiresAt,
+      status: DeliveryFeeStatus.NEEDS_NEGOTIATION,
+      deliveryFee: null,
+      deliveryMinor: 0n,
+      expiresAt: null,
       configId: cfg.id,
       internalJson: JSON.stringify({
         ...calc,
+        requiresStaffQuote: true,
+        suggestedFee:
+          calc.appliedFee != null ? calc.appliedFee.toFixed(2) : null,
         distanceProvider: dist.provider,
         configId: cfg.id,
         configRatePerKm: cfg.ratePerKm.toString(),
@@ -364,12 +354,18 @@ export class DeliveryService {
           ? OrderStatus.AWAITING_OFFLINE_PAYMENT
           : OrderStatus.PENDING_PAYMENT;
 
+      const nextQuoteVersion = (order.deliveryQuoteVersion ?? 0) + 1;
+
       await tx.order.update({
         where: { id: order.id },
         data: {
           deliveryFee: fee,
           deliveryFeeStatus: status,
           deliveryQuoteExpiresAt: null,
+          // Bump version and clear customer confirmation so stale accepts cannot authorize payment.
+          deliveryQuoteVersion: nextQuoteVersion,
+          deliveryQuoteConfirmedVersion: null,
+          deliveryQuoteConfirmedAt: null,
           total,
           status: nextStatus,
         },
@@ -402,9 +398,11 @@ export class DeliveryService {
       metadata: {
         previousFee: order.deliveryFee?.toString() ?? null,
         previousStatus: order.deliveryFeeStatus,
+        previousQuoteVersion: order.deliveryQuoteVersion ?? 0,
         newFee: fee.toString(),
         newStatus: status,
         newTotal: total,
+        newQuoteVersion: (order.deliveryQuoteVersion ?? 0) + 1,
         reason: reason ?? null,
       },
     });

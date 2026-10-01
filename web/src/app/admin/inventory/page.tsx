@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/feedback/toast";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   fetchInventory,
   type StaffProduct,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/admin-api";
 
 export default function AdminInventoryPage() {
+  const { user } = useAuth();
   const { push } = useToast();
   const [rows, setRows] = useState<StaffProduct[]>([]);
   const [q, setQ] = useState("");
@@ -24,6 +26,7 @@ export default function AdminInventoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [stock, setStock] = useState("");
+  const [availability, setAvailability] = useState("AVAILABLE");
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -40,16 +43,20 @@ export default function AdminInventoryPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (!editId) return;
     setBusy(true);
     try {
-      await updateInventory(editId, { stockQuantity: Number(stock) });
+      await updateInventory(editId, {
+        stockQuantity: Number(stock),
+        availability,
+      });
       push({ title: "Stock updated", tone: "success" });
       setEditId(null);
       await load();
@@ -66,7 +73,12 @@ export default function AdminInventoryPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="type-h2 text-primary">Inventory</h1>
+      <div>
+        <h1 className="type-h2 text-primary">Inventory</h1>
+        <p className="mt-1 type-body-sm text-text-muted">
+          Adjust stock and mark products Available or Unavailable.
+        </p>
+      </div>
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -105,7 +117,9 @@ export default function AdminInventoryPage() {
                       {p.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 type-body-sm">{p.availability}</td>
+                  <td className="px-3 py-2 type-body-sm">
+                    {p.availability === "AVAILABLE" ? "Available" : "Unavailable"}
+                  </td>
                   <td className="px-3 py-2 type-body-sm">{p.stockQuantity ?? "—"}</td>
                   <td className="px-3 py-2 type-body-sm">
                     {p.weightPerCartonKg ?? "—"}
@@ -117,6 +131,7 @@ export default function AdminInventoryPage() {
                       onClick={() => {
                         setEditId(p.id);
                         setStock(String(p.stockQuantity ?? 0));
+                        setAvailability(p.availability ?? "AVAILABLE");
                       }}
                     >
                       Adjust
@@ -129,8 +144,28 @@ export default function AdminInventoryPage() {
         </div>
       )}
       {editId ? (
-        <form className="flex gap-2 border border-border bg-surface p-4" onSubmit={onSave}>
-          <Input id="stock" label="New stock" value={stock} onChange={(e) => setStock(e.target.value)} />
+        <form
+          className="flex flex-wrap gap-3 border border-border bg-surface p-4"
+          onSubmit={onSave}
+        >
+          <Input
+            id="stock"
+            label="New stock"
+            value={stock}
+            onChange={(e) => setStock(e.target.value)}
+          />
+          <label className="block min-w-[10rem]" htmlFor="inv-availability">
+            <span className="type-caption text-text-muted">Sell status</span>
+            <select
+              id="inv-availability"
+              className="mt-1 w-full border border-border bg-surface px-3 py-2"
+              value={availability}
+              onChange={(e) => setAvailability(e.target.value)}
+            >
+              <option value="AVAILABLE">Available</option>
+              <option value="UNAVAILABLE">Unavailable</option>
+            </select>
+          </label>
           <div className="flex items-end gap-2">
             <Button type="submit" loading={busy}>
               Save

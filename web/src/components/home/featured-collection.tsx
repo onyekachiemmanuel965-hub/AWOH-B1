@@ -4,6 +4,7 @@ import { ProductCard } from "@/components/product/product-card";
 import {
   fetchProducts,
   formatProductPrice,
+  mediaUrl,
   type PublicProduct,
 } from "@/lib/api";
 import { EmptyState } from "@/components/feedback/feedback";
@@ -63,11 +64,12 @@ export async function FeaturedCollection() {
             {products.map((product) => (
               <ProductCard
                 key={product.id}
+                productId={product.id}
                 name={product.name}
                 category={product.category.name}
                 subcategory={product.subcategory.name}
                 priceLabel={formatProductPrice(product)}
-                imageSrc={product.primaryImage ?? undefined}
+                imageSrc={mediaUrl(product.primaryImage) || undefined}
                 imageAlt={product.images[0]?.altText ?? product.name}
                 tileSize={product.tileSize}
                 tileSizeLabel={product.tileSizeLabel}

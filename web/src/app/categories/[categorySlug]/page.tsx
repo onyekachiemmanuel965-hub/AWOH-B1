@@ -11,6 +11,7 @@ import {
   fetchCategory,
   fetchProducts,
   formatProductPrice,
+  mediaUrl,
 } from "@/lib/api";
 
 type Params = Promise<{ categorySlug: string }>;
@@ -69,7 +70,7 @@ export default async function CategoryPage({ params }: { params: Params }) {
             {category.imageUrl ? (
               <div className="relative min-h-[12rem] overflow-hidden border border-border bg-surface">
                 <Image
-                  src={category.imageUrl}
+                  src={mediaUrl(category.imageUrl)}
                   alt=""
                   fill
                   unoptimized={category.imageUrl.endsWith(".svg")}
@@ -128,11 +129,12 @@ export default async function CategoryPage({ params }: { params: Params }) {
                   {products.data.map((product) => (
                     <ProductCard
                       key={product.id}
+                      productId={product.id}
                       name={product.name}
                       category={product.category.name}
                       subcategory={product.subcategory.name}
                       priceLabel={formatProductPrice(product)}
-                      imageSrc={product.primaryImage ?? undefined}
+                      imageSrc={mediaUrl(product.primaryImage) || undefined}
                       imageAlt={product.images[0]?.altText ?? product.name}
                       tileSize={product.tileSize}
                       tileSizeLabel={product.tileSizeLabel}

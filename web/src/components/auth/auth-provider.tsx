@@ -62,14 +62,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       refresh,
       login: async (email, password) => {
-        const next = await loginAccount({ email, password });
-        setUser(next);
-        return next;
+        await loginAccount({ email, password });
+        // Require a cookie-backed session — never trust the login JSON body alone.
+        const confirmed = await fetchCurrentUser();
+        if (!confirmed) {
+          throw new Error(
+            "Signed in, but the browser did not keep the session cookie. Use http://localhost:3001 (not 127.0.0.1) and try again.",
+          );
+        }
+        setUser(confirmed);
+        return confirmed;
       },
       register: async (input) => {
-        const next = await registerAccount(input);
-        setUser(next);
-        return next;
+        await registerAccount(input);
+        const confirmed = await fetchCurrentUser();
+        if (!confirmed) {
+          throw new Error(
+            "Account created, but the session cookie was not kept. Try signing in again.",
+          );
+        }
+        setUser(confirmed);
+        return confirmed;
       },
       logout: async () => {
         await logoutAccount();

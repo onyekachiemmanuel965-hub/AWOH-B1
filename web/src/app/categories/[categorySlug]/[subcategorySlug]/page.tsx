@@ -10,6 +10,7 @@ import {
   fetchProducts,
   fetchSubcategory,
   formatProductPrice,
+  mediaUrl,
 } from "@/lib/api";
 
 type Params = Promise<{ categorySlug: string; subcategorySlug: string }>;
@@ -95,11 +96,12 @@ export default async function SubcategoryPage({ params }: { params: Params }) {
                 {products.data.map((product) => (
                   <ProductCard
                     key={product.id}
+                    productId={product.id}
                     name={product.name}
                     category={product.category.name}
                     subcategory={product.subcategory.name}
                     priceLabel={formatProductPrice(product)}
-                    imageSrc={product.primaryImage ?? undefined}
+                    imageSrc={mediaUrl(product.primaryImage) || undefined}
                     imageAlt={product.images[0]?.altText ?? product.name}
                     tileSize={product.tileSize}
                     tileSizeLabel={product.tileSizeLabel}

@@ -30,7 +30,6 @@ const ROLE_PERMS: Record<string, string[]> = {
     'inventory.manage',
     'orders.read',
     'account.read',
-    'delivery.read',
   ],
   SALES_STAFF: [
     'products.read',
@@ -118,6 +117,18 @@ const ENDPOINTS: Array<{
     name: 'Product create',
     roles: [ROLE_CODES.ADMIN, ROLE_CODES.CONTENT_MANAGER],
     permissions: ['products.manage'],
+    expect: {
+      ADMIN: true,
+      SALES_STAFF: false,
+      INVENTORY_MANAGER: false,
+      CONTENT_MANAGER: true,
+      CUSTOMER: false,
+    },
+  },
+  {
+    name: 'Storefront image upload',
+    roles: [ROLE_CODES.ADMIN, ROLE_CODES.CONTENT_MANAGER],
+    permissions: ['content.manage'],
     expect: {
       ADMIN: true,
       SALES_STAFF: false,

@@ -7,7 +7,7 @@ import { QuantitySelector } from "@/components/ui/search-input";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/components/cart/cart-provider";
 import type { PublicProduct } from "@/lib/api";
-import { formatProductPrice } from "@/lib/api";
+import { formatProductPrice, mediaUrl } from "@/lib/api";
 import { tileAspectRatioCss } from "@/lib/tile-size";
 
 export function ProductDetailClient({ product }: { product: PublicProduct }) {
@@ -25,6 +25,7 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
     product.tileSize,
     product.tileAspectRatio,
   );
+  const currentSrc = current ? mediaUrl(current.url) : "";
 
   return (
     <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
@@ -35,7 +36,7 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
         >
           {current ? (
             <Image
-              src={current.url}
+              src={currentSrc}
               alt={current.altText ?? product.name}
               fill
               priority
@@ -47,7 +48,9 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
         </div>
         {images.length > 1 ? (
           <ul className="flex list-none gap-2 overflow-x-auto p-0">
-            {images.map((img) => (
+            {images.map((img) => {
+              const src = mediaUrl(img.url);
+              return (
               <li key={img.id}>
                 <button
                   type="button"
@@ -61,7 +64,7 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
                   aria-pressed={img.id === current?.id}
                 >
                   <Image
-                    src={img.url}
+                    src={src}
                     alt={img.altText ?? ""}
                     fill
                     unoptimized={img.url.endsWith(".svg")}
@@ -70,7 +73,8 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
                   />
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : null}
       </div>
@@ -116,7 +120,23 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
             type="button"
             disabled={!available}
             onClick={() => addItem(product.id, qty)}
+            className="gap-2"
           >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5"
+              aria-hidden
+            >
+              <path d="M6 6h15l-1.5 9h-12z" />
+              <path d="M6 6 5 3H2" />
+              <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
+              <circle cx="18" cy="20" r="1.25" fill="currentColor" stroke="none" />
+            </svg>
             Add to cart
           </Button>
         </div>

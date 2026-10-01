@@ -36,29 +36,38 @@ export default function AdminStaffPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string>("");
 
   const [roleTarget, setRoleTarget] = useState<StaffUser | null>(null);
   const [roleValue, setRoleValue] = useState<AssignableRole>("CUSTOMER");
   const [statusTarget, setStatusTarget] = useState<StaffUser | null>(null);
   const [viewTarget, setViewTarget] = useState<StaffUser | null>(null);
 
-  const load = useCallback(async (page = 1) => {
-    setLoading(true);
-    try {
-      const res = await fetchStaff({ page, limit: 30 });
-      setRows(res.data);
-      setMeta({ page: res.meta.page, totalPages: res.meta.totalPages });
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load staff.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (page = 1, role = roleFilter) => {
+      setLoading(true);
+      try {
+        const res = await fetchStaff({
+          page,
+          limit: 30,
+          role: role || undefined,
+        });
+        setRows(res.data);
+        setMeta({ page: res.meta.page, totalPages: res.meta.totalPages });
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load staff.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [roleFilter],
+  );
 
   useEffect(() => {
-    void load(1);
-  }, [load]);
+    if (!user) return;
+    void load(1, roleFilter);
+  }, [load, user, roleFilter]);
 
   async function confirmRoleChange() {
     if (!roleTarget) return;
@@ -71,7 +80,7 @@ export default function AdminStaffPage() {
         tone: "success",
       });
       setRoleTarget(null);
-      await load(meta.page);
+      await load(meta.page, roleFilter);
     } catch (err) {
       push({
         title: "Role change failed",
@@ -95,7 +104,7 @@ export default function AdminStaffPage() {
         tone: "success",
       });
       setStatusTarget(null);
-      await load(meta.page);
+      await load(meta.page, roleFilter);
     } catch (err) {
       push({
         title: "Status change failed",
@@ -113,8 +122,50 @@ export default function AdminStaffPage() {
         <h1 className="type-h2 text-primary">Staff</h1>
         <p className="mt-1 type-body-sm text-text-muted">
           Manage staff roles and account access. Employees register as Customer,
-          then an administrator assigns their role.
+          then an administrator assigns their role (including{" "}
+          <strong>Sales Staff</strong>).
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[14rem] flex-1">
+          <Select
+            id="staff-role-filter"
+            label="Filter by role"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            options={[
+              { value: "", label: "All roles" },
+              ...ASSIGNABLE_ROLES.map((r) => ({
+                value: r.value,
+                label: r.label,
+              })),
+            ]}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 pb-0.5">
+          <Button
+            size="sm"
+            variant={roleFilter === "SALES_STAFF" ? "primary" : "outline"}
+            onClick={() => setRoleFilter("SALES_STAFF")}
+          >
+            Sales Staff
+          </Button>
+          <Button
+            size="sm"
+            variant={roleFilter === "CUSTOMER" ? "primary" : "outline"}
+            onClick={() => setRoleFilter("CUSTOMER")}
+          >
+            Customers
+          </Button>
+          <Button
+            size="sm"
+            variant={roleFilter === "" ? "primary" : "outline"}
+            onClick={() => setRoleFilter("")}
+          >
+            All
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -124,7 +175,11 @@ export default function AdminStaffPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           title="No users"
-          description="Registered users will appear here."
+          description={
+            roleFilter
+              ? `No users with role ${roleLabel(roleFilter)}. Assign this role via Change role on a customer account.`
+              : "Registered users will appear here."
+          }
         />
       ) : (
         <div className="overflow-x-auto border border-border">
@@ -215,7 +270,7 @@ export default function AdminStaffPage() {
             variant="outline"
             size="sm"
             disabled={meta.page <= 1}
-            onClick={() => void load(meta.page - 1)}
+            onClick={() => void load(meta.page - 1, roleFilter)}
           >
             Previous
           </Button>
@@ -223,7 +278,7 @@ export default function AdminStaffPage() {
             variant="outline"
             size="sm"
             disabled={meta.page >= meta.totalPages}
-            onClick={() => void load(meta.page + 1)}
+            onClick={() => void load(meta.page + 1, roleFilter)}
           >
             Next
           </Button>
@@ -281,7 +336,7 @@ export default function AdminStaffPage() {
         title="Change role"
         description={
           roleTarget
-            ? `You are changing this user's role to ${roleLabel(roleValue)}.`
+            ? `Assign an operational role for ${roleTarget.name}.`
             : undefined
         }
         confirmLabel={busy ? "Saving…" : "Confirm role change"}
@@ -296,7 +351,14 @@ export default function AdminStaffPage() {
             value: r.value,
             label: r.label,
           }))}
+          hint="Sales Staff can manage orders and set delivery quotes."
         />
+        {roleValue === "SALES_STAFF" ? (
+          <p className="mt-2 type-caption text-text-muted">
+            Sales Staff can open orders, set delivery fees, and confirm offline
+            payments. They cannot manage Staff or Audit.
+          </p>
+        ) : null}
         {roleValue === "ADMIN" ? (
           <p className="mt-2 type-caption text-text-muted">
             Admin grants full operational access, including staff management.

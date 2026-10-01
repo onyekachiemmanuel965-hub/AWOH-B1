@@ -10,10 +10,14 @@ import { createPageMetadata } from "@/lib/metadata";
 import {
   fetchCategories,
   fetchProducts,
+  fetchStorefrontImages,
   formatProductPrice,
+  mediaUrl,
+  storefrontImageMap,
   type ProductListResponse,
   type PublicCategory,
 } from "@/lib/api";
+import { PageImageBanner } from "@/components/content/page-image-banner";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -52,9 +56,10 @@ export default async function ProductsPage({
   let categories: PublicCategory[] = [];
   let productsResult: ProductListResponse | null = null;
   let error: string | null = null;
+  let pageBanner: { url: string; altText: string } | null = null;
 
   try {
-    [categories, productsResult] = await Promise.all([
+    const [cats, products, storefront] = await Promise.all([
       fetchCategories(),
       fetchProducts({
         q,
@@ -64,7 +69,14 @@ export default async function ProductsPage({
         page,
         limit: 12,
       }),
+      fetchStorefrontImages("products"),
     ]);
+    categories = cats;
+    productsResult = products;
+    const banner = storefrontImageMap(storefront).get("products.hero");
+    if (banner?.isCustom) {
+      pageBanner = { url: banner.url, altText: banner.altText };
+    }
   } catch {
     error = "Unable to load the catalog right now. Please try again shortly.";
   }
@@ -73,6 +85,9 @@ export default async function ProductsPage({
     <>
       <SiteHeader />
       <main id="main-content">
+        {pageBanner ? (
+          <PageImageBanner src={pageBanner.url} alt={pageBanner.altText} />
+        ) : null}
         <Section className="border-b border-border bg-surface-muted !py-12">
           <Container width="wide">
             <p className="type-caption uppercase tracking-[0.16em] text-accent">
@@ -138,11 +153,12 @@ export default async function ProductsPage({
                   {productsResult.data.map((product) => (
                     <ProductCard
                       key={product.id}
+                      productId={product.id}
                       name={product.name}
                       category={product.category.name}
                       subcategory={product.subcategory.name}
                       priceLabel={formatProductPrice(product)}
-                      imageSrc={product.primaryImage ?? undefined}
+                      imageSrc={mediaUrl(product.primaryImage) || undefined}
                       imageAlt={
                         product.images[0]?.altText ?? product.name
                       }

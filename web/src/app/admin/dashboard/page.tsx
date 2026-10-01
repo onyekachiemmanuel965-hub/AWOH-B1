@@ -23,6 +23,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     (async () => {
       try {
@@ -33,6 +34,7 @@ export default function AdminDashboardPage() {
         if (!cancelled) {
           setData(stats);
           setAccess(myAccess);
+          setError(null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -47,7 +49,7 @@ export default function AdminDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   if (loading) return <LoadingSpinner label="Loading dashboard…" />;
   if (error || !data) {
@@ -90,24 +92,49 @@ export default function AdminDashboardPage() {
           </div>
           <div>
             <p className="type-caption uppercase tracking-[0.14em] text-accent">
-              Your access
-            </p>
-            <p className="mt-1 type-body-sm text-text-muted">
-              Modules the administrator has assigned to your account.
+              What you can access
             </p>
             <ul className="mt-3 flex flex-wrap gap-2 list-none p-0">
-              {access.modules.map((m) => (
-                <li key={m.key}>
-                  <Link
-                    href={m.href}
-                    className="inline-flex border border-border bg-background px-3 py-1.5 type-caption text-primary no-underline hover:border-border-strong"
+              {(access.allowedLabels ?? access.modules.map((m) => m.label)).map(
+                (label) => (
+                  <li
+                    key={label}
+                    className="border border-border bg-background px-3 py-1.5 type-caption text-primary"
                   >
-                    {m.label}
-                  </Link>
-                </li>
-              ))}
+                    ✓ {label}
+                  </li>
+                ),
+              )}
             </ul>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {access.nav.map((m) => (
+                <Link
+                  key={m.key}
+                  href={m.href}
+                  className="inline-flex border border-border bg-background px-3 py-1.5 type-caption text-primary no-underline hover:border-border-strong"
+                >
+                  {m.label}
+                </Link>
+              ))}
+            </div>
           </div>
+          {(access.restrictedLabels?.length ?? 0) > 0 ? (
+            <div>
+              <p className="type-caption uppercase tracking-[0.14em] text-accent">
+                Restricted
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-2 list-none p-0">
+                {access.restrictedLabels!.map((label) => (
+                  <li
+                    key={label}
+                    className="border border-border bg-surface-muted px-3 py-1.5 type-caption text-text-muted"
+                  >
+                    • {label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </section>
       ) : null}
 

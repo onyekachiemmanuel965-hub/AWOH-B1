@@ -125,7 +125,7 @@ describe('Stage 09 customer privacy regression', () => {
       DeliveryFeeStatus.NEEDS_NEGOTIATION,
       null,
       'NGN',
-      'Please contact AWOH-B',
+      'Please contact the sales team',
     );
 
     expect(containsCustomerForbiddenField(order)).toBeNull();

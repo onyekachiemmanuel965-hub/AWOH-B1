@@ -14,6 +14,16 @@ type ProductWithRelations = Product & {
   subcategory: Subcategory & { category: Category };
 };
 
+/** Internal catalogue-import metadata — never expose on the storefront. */
+const STOREFRONT_HIDDEN_SPEC_KEYS = new Set([
+  'importSource',
+  'importBatch',
+  'sourcePage',
+  'catalogueSku',
+  'catalogueCategory',
+  'catalogueSize',
+]);
+
 /** Public product DTO — never includes stockQuantity or internal weight fields. */
 export function toPublicProduct(product: ProductWithRelations) {
   const images = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -28,7 +38,7 @@ export function toPublicProduct(product: ProductWithRelations) {
     availability: product.availability,
     featured: product.featured,
     ...tile,
-    specs: parseSpecs(product.specsJson),
+    specs: toPublicSpecs(product.specsJson),
     category: {
       id: product.subcategory.category.id,
       name: product.subcategory.category.name,
@@ -106,6 +116,19 @@ function parseSpecs(raw: string | null): Record<string, string> | null {
   } catch {
     return null;
   }
+}
+
+/** Customer-safe specs only (SKU/finish OK; import provenance stripped). */
+export function toPublicSpecs(raw: string | null): Record<string, string> | null {
+  const parsed = parseSpecs(raw);
+  if (!parsed) return null;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (STOREFRONT_HIDDEN_SPEC_KEYS.has(key)) continue;
+    if (typeof value !== 'string') continue;
+    out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 export const ACTIVE = CatalogStatus.ACTIVE;

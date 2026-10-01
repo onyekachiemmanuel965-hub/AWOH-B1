@@ -32,6 +32,8 @@ describe('OrdersService + money', () => {
     price: { toString: () => '1000.00' },
     status: CatalogStatus.ACTIVE,
     availability: ProductAvailability.AVAILABLE,
+    tileSize: null,
+    specsJson: null,
   };
 
   function buildService(prisma: Record<string, unknown>) {
@@ -46,11 +48,24 @@ describe('OrdersService + money', () => {
       }),
     };
     const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const locations = {
+      resolveValidatedAddress: jest.fn().mockResolvedValue({
+        shippingStateId: 's1',
+        shippingLgaId: 'l1',
+        shippingTownId: 't1',
+        shippingState: 'Anambra',
+        shippingLga: 'Awka South',
+        shippingCity: 'Awka',
+        shippingLine1: '12 Road',
+        shippingNotes: null,
+      }),
+    };
     return new OrdersService(
       prisma as never,
       currencyConfig as never,
       delivery as never,
       audit as never,
+      locations as never,
     );
   }
 
@@ -182,14 +197,19 @@ describe('OrdersService + money', () => {
                 fulfillmentMethod: FulfillmentMethod.DELIVERY,
                 deliveryFeeStatus: data.deliveryFeeStatus,
                 deliveryFee: null,
+                deliveryQuoteVersion: 0,
+                deliveryQuoteConfirmedVersion: null,
+                deliveryQuoteConfirmedAt: null,
+                deliveryQuoteExpiresAt: null,
                 subtotal: { toString: () => '1000.00' },
                 total: { toString: () => '1000.00' },
                 currency: 'NGN',
                 contactEmail: 'a@example.com',
                 contactPhone: null,
                 shippingLine1: '1 Demo Street',
-                shippingCity: 'Lagos',
-                shippingState: 'LA',
+                shippingCity: 'Awka',
+                shippingLga: 'Awka South',
+                shippingState: 'Anambra',
                 shippingNotes: null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
@@ -210,11 +230,14 @@ describe('OrdersService + money', () => {
       fulfillmentMethod: FulfillmentMethod.DELIVERY,
       paymentMethod: PaymentMethod.PAYSTACK,
       contactEmail: 'a@example.com',
+      shippingStateId: 's1',
+      shippingLgaId: 'l1',
+      shippingTownId: 't1',
       shippingLine1: '1 Demo Street',
     });
 
     expect(result.paymentAllowed).toBe(false);
-    expect(result.deliveryMessage).toMatch(/contact AWOH-B/i);
+    expect(result.deliveryMessage).toMatch(/sales staff/i);
     expect(isPaymentAllowed(result as never)).toBe(false);
   });
 
@@ -315,9 +338,39 @@ describe('OrdersService + money', () => {
       service.assertPayable(
         {
           userId: 'owner',
+          fulfillmentMethod: FulfillmentMethod.DELIVERY,
           deliveryFeeStatus: DeliveryFeeStatus.QUOTE_AVAILABLE,
           deliveryQuoteExpiresAt: new Date(Date.now() - 60_000),
+          deliveryQuoteVersion: 1,
+          deliveryQuoteConfirmedVersion: 1,
+          deliveryFee: { toString: () => '1000.00' },
           status: OrderStatus.PENDING_PAYMENT,
+          shippingLine1: '12 Road',
+          shippingCity: 'Awka',
+          shippingLga: 'Awka South',
+          shippingState: 'Anambra',
+        },
+        'owner',
+      ),
+    ).toThrow(BadRequestException);
+  });
+
+  it('assertPayable blocks staff fee until customer confirms', () => {
+    const service = buildService({});
+    expect(() =>
+      service.assertPayable(
+        {
+          userId: 'owner',
+          fulfillmentMethod: FulfillmentMethod.DELIVERY,
+          deliveryFeeStatus: DeliveryFeeStatus.FEE_SET_BY_STAFF,
+          deliveryQuoteVersion: 1,
+          deliveryQuoteConfirmedVersion: null,
+          deliveryFee: { toString: () => '5000.00' },
+          status: OrderStatus.PENDING_PAYMENT,
+          shippingLine1: '12 Road',
+          shippingCity: 'Awka',
+          shippingLga: 'Awka South',
+          shippingState: 'Anambra',
         },
         'owner',
       ),
@@ -330,13 +383,92 @@ describe('OrdersService + money', () => {
       service.assertPayable(
         {
           userId: 'owner',
+          fulfillmentMethod: FulfillmentMethod.DELIVERY,
           deliveryFeeStatus: DeliveryFeeStatus.QUOTE_AVAILABLE,
           deliveryQuoteExpiresAt: new Date(Date.now() + 60_000),
+          deliveryQuoteVersion: 1,
+          deliveryQuoteConfirmedVersion: 1,
+          deliveryFee: { toString: () => '1000.00' },
           status: OrderStatus.PENDING_PAYMENT,
+          shippingLine1: '12 Road',
+          shippingCity: 'Awka',
+          shippingLga: 'Awka South',
+          shippingState: 'Anambra',
         },
         'owner',
       ),
     ).not.toThrow();
+  });
+
+  it('acceptDeliveryQuote records confirmation against current version', async () => {
+    const order = {
+      id: 'o1',
+      orderNumber: 'AWOH-1',
+      userId: 'owner',
+      status: OrderStatus.PENDING_PAYMENT,
+      fulfillmentMethod: FulfillmentMethod.DELIVERY,
+      deliveryFeeStatus: DeliveryFeeStatus.FEE_SET_BY_STAFF,
+      deliveryFee: { toString: () => '5000.00' },
+      deliveryQuoteExpiresAt: null,
+      deliveryQuoteVersion: 2,
+      deliveryQuoteConfirmedVersion: null,
+      deliveryQuoteConfirmedAt: null,
+      subtotal: { toString: () => '10000.00' },
+      total: { toString: () => '15000.00' },
+      currency: 'NGN',
+      contactEmail: 'a@b.com',
+      contactPhone: null,
+      shippingLine1: '12 Road',
+      shippingCity: 'Awka',
+      shippingLga: 'Awka South',
+      shippingState: 'Anambra',
+      shippingNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      items: [],
+      payments: [],
+      receipt: null,
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const prisma = {
+      order: {
+        findFirst: jest.fn().mockResolvedValue(order),
+        update: jest.fn().mockResolvedValue({
+          ...order,
+          deliveryQuoteConfirmedVersion: 2,
+          deliveryQuoteConfirmedAt: new Date(),
+        }),
+      },
+    };
+    const service = new OrdersService(
+      prisma as never,
+      currencyConfig as never,
+      { evaluateForOrderLines: jest.fn() } as never,
+      audit as never,
+      {
+        resolveValidatedAddress: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.acceptDeliveryQuote('owner', 'o1', '127.0.0.1');
+    expect(result.paymentAllowed).toBe(true);
+    expect(result.deliveryQuoteStatus).toBe('DELIVERY_QUOTE_CONFIRMED');
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'delivery.customer_confirm_quote',
+        entityId: 'o1',
+      }),
+    );
+  });
+
+  it('acceptDeliveryQuote rejects foreign user', async () => {
+    const prisma = {
+      order: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
+    const service = buildService(prisma);
+    await expect(
+      service.acceptDeliveryQuote('intruder', 'o1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
