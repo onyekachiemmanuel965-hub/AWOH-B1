@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section, Grid } from "@/components/layout/primitives";
 import { ProductCard } from "@/components/product/product-card";
 import { EmptyState } from "@/components/feedback/feedback";
@@ -50,9 +49,7 @@ export default async function SubcategoryPage({ params }: { params: Params }) {
   });
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="porcelain">
         <Section className="border-b border-border bg-surface-muted !py-12">
           <Container width="wide">
             <nav className="type-caption text-text-muted" aria-label="Breadcrumb">
@@ -118,8 +115,6 @@ export default async function SubcategoryPage({ params }: { params: Params }) {
             )}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

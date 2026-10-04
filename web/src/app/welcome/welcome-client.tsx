@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { LoadingSpinner } from "@/components/feedback/feedback";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -47,9 +46,7 @@ export function WelcomeClient() {
   const firstName = user.firstName?.trim();
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="interior">
         <Section className="!py-16 md:!py-24">
           <Container className="max-w-xl text-center">
             <p className="type-caption uppercase tracking-[0.16em] text-accent">
@@ -86,8 +83,6 @@ export function WelcomeClient() {
             </p>
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

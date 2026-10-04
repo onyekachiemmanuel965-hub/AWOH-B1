@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import {
   Container,
   Section,
@@ -35,8 +34,7 @@ function ShowcaseInner() {
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <>
-      <SiteHeader />
+    <StorefrontShell atmosphere="marble" wrapMain={false}>
       <main id="main-content">
         <Section className="border-b border-border bg-[linear-gradient(180deg,var(--color-background)_0%,var(--color-surface-muted)_100%)]">
           <Container>
@@ -285,7 +283,6 @@ function ShowcaseInner() {
           </Container>
         </Section>
       </main>
-      <SiteFooter />
 
       <Modal
         open={modalOpen}
@@ -298,7 +295,7 @@ function ShowcaseInner() {
           push({ title: "Confirmed", tone: "success" });
         }}
       />
-    </>
+    </StorefrontShell>
   );
 }
 

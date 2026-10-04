@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { PUBLIC_NAV_LINKS } from "@/lib/public-nav";
 import { BrandMark } from "@/components/navigation/brand-mark";
 import { useCart } from "@/components/cart/cart-provider";
@@ -11,15 +12,20 @@ import { cn } from "@/lib/cn";
 const navLinks = PUBLIC_NAV_LINKS;
 
 const primaryCtaClass =
-  "inline-flex h-9 items-center justify-center rounded-md border border-primary bg-primary px-4 type-button text-text-inverse no-underline shadow-xs transition-colors hover:bg-primary-hover";
+  "h-9 items-center justify-center rounded-md border border-primary bg-primary px-4 type-button text-text-inverse no-underline shadow-xs transition-colors hover:bg-primary-hover";
 
 const quietLinkClass =
-  "inline-flex h-9 items-center justify-center rounded-md border border-border bg-surface px-3 type-label text-primary no-underline hover:border-border-strong";
+  "h-9 items-center justify-center rounded-md border border-border bg-surface px-3 type-label text-primary no-underline hover:border-border-strong";
 
 export function SiteHeader({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const { count } = useCart();
   const { user, loading, logout } = useAuth();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   async function goToSignIn() {
     setOpen(false);
@@ -40,8 +46,8 @@ export function SiteHeader({ className }: { className?: string }) {
       >
         Skip to main content
       </a>
-      <div className="mx-auto flex h-[var(--header-height)] max-w-[var(--container-wide)] items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
-        <BrandMark />
+      <div className="mx-auto flex h-[var(--header-height)] max-w-[var(--container-wide)] items-center gap-2 px-3 sm:gap-4 sm:px-6 lg:px-8">
+        <BrandMark className="min-w-0 flex-1 lg:flex-none" />
 
         <nav
           className="ml-4 hidden items-center gap-6 lg:ml-8 lg:flex"
@@ -58,22 +64,22 @@ export function SiteHeader({ className }: { className?: string }) {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <Link
             href="/products"
-            className={cn(primaryCtaClass, "hidden sm:inline-flex")}
+            className={cn(primaryCtaClass, "hidden lg:inline-flex")}
           >
             Explore Collections
           </Link>
           {!loading && user ? (
-            <Link href="/account" className={cn(quietLinkClass, "hidden sm:inline-flex")}>
+            <Link href="/account" className={cn(quietLinkClass, "hidden lg:inline-flex")}>
               My Account
             </Link>
           ) : null}
           {!loading ? (
             <button
               type="button"
-              className={cn(quietLinkClass, "hidden sm:inline-flex")}
+              className={cn(quietLinkClass, "hidden lg:inline-flex")}
               onClick={goToSignIn}
             >
               Sign in
@@ -81,14 +87,17 @@ export function SiteHeader({ className }: { className?: string }) {
           ) : null}
           <Link
             href="/cart"
-            className={quietLinkClass}
+            className={cn(quietLinkClass, "inline-flex px-2.5 lg:px-3")}
             aria-label={`Cart with ${count} items`}
           >
-            Cart{count > 0 ? ` (${count})` : ""}
+            <span className="lg:hidden">{count > 0 ? count : "Cart"}</span>
+            <span className="hidden lg:inline">
+              Cart{count > 0 ? ` (${count})` : ""}
+            </span>
           </Link>
           <button
             type="button"
-            className="inline-flex size-10 items-center justify-center rounded-md border border-border lg:hidden"
+            className="relative z-10 inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-md border border-border bg-surface lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -106,15 +115,17 @@ export function SiteHeader({ className }: { className?: string }) {
 
       <div
         id="mobile-nav"
-        hidden={!open}
-        className="border-t border-border bg-surface px-4 py-4 lg:hidden"
+        className={cn(
+          "border-t border-border bg-surface px-4 py-3 lg:hidden",
+          open ? "block" : "hidden",
+        )}
       >
-        <nav className="flex flex-col gap-3" aria-label="Mobile">
+        <nav className="flex flex-col" aria-label="Mobile">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
-              className="type-body text-primary no-underline"
+              className="border-b border-border py-3 type-body text-primary no-underline"
               onClick={() => setOpen(false)}
             >
               {link.label}
@@ -123,7 +134,7 @@ export function SiteHeader({ className }: { className?: string }) {
           {user ? (
             <Link
               href="/account"
-              className="type-body text-primary no-underline"
+              className="border-b border-border py-3 type-body text-primary no-underline"
               onClick={() => setOpen(false)}
             >
               My Account
@@ -131,21 +142,21 @@ export function SiteHeader({ className }: { className?: string }) {
           ) : null}
           <button
             type="button"
-            className="type-body text-left text-primary"
+            className="border-b border-border py-3 text-left type-body text-primary"
             onClick={goToSignIn}
           >
             Sign in
           </button>
           <Link
             href="/cart"
-            className="type-body text-primary no-underline"
+            className="border-b border-border py-3 type-body text-primary no-underline"
             onClick={() => setOpen(false)}
           >
             Cart{count > 0 ? ` (${count})` : ""}
           </Link>
           <Link
             href="/products"
-            className={cn(primaryCtaClass, "mt-2 w-full")}
+            className={cn(primaryCtaClass, "mt-2 inline-flex w-full")}
             onClick={() => setOpen(false)}
           >
             Explore Collections

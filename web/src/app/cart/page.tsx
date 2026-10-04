@@ -3,8 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/ui/search-input";
@@ -13,6 +12,7 @@ import {
   ErrorState,
   LoadingSpinner,
 } from "@/components/feedback/feedback";
+import { ImageZoomLightbox } from "@/components/product/image-zoom-lightbox";
 import { useCart } from "@/components/cart/cart-provider";
 import { formatMoney } from "@/lib/money";
 import { resolveProducts, mediaUrl, type PublicProduct } from "@/lib/api";
@@ -67,9 +67,7 @@ export default function CartPage() {
   const currency = lines[0]?.product.currency ?? "NGN";
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="marble">
         <Section className="!py-12">
           <Container className="space-y-8">
             <div>
@@ -111,14 +109,26 @@ export default function CartPage() {
                     >
                       <div className="relative aspect-square overflow-hidden bg-surface-muted">
                         {product.primaryImage ? (
-                          <Image
+                          <ImageZoomLightbox
                             src={mediaUrl(product.primaryImage)}
                             alt={product.images[0]?.altText ?? product.name}
-                            fill
-                            unoptimized={product.primaryImage.endsWith(".svg")}
-                            className="object-cover"
-                            sizes="80px"
-                          />
+                            hint="Zoom"
+                          >
+                            <span className="relative block aspect-square">
+                              <Image
+                                src={mediaUrl(product.primaryImage)}
+                                alt={
+                                  product.images[0]?.altText ?? product.name
+                                }
+                                fill
+                                unoptimized={product.primaryImage.endsWith(
+                                  ".svg",
+                                )}
+                                className="object-cover"
+                                sizes="80px"
+                              />
+                            </span>
+                          </ImageZoomLightbox>
                         ) : null}
                       </div>
                       <div className="space-y-2">
@@ -186,8 +196,6 @@ export default function CartPage() {
             )}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

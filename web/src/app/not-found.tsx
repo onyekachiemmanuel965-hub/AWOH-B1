@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container } from "@/components/layout/primitives";
 
 export default function NotFound() {
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content" className="py-20">
+    <StorefrontShell atmosphere="stone" mainClassName="py-20">
         <Container className="max-w-xl space-y-6 text-center">
           <p className="type-caption uppercase tracking-[0.16em] text-accent">
             Not found
@@ -24,8 +21,6 @@ export default function NotFound() {
             Browse collections
           </Link>
         </Container>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

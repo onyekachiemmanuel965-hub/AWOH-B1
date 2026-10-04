@@ -103,7 +103,7 @@ export function ProductCard({
             fill
             unoptimized={imageSrc.endsWith(".svg")}
             className="object-cover transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] group-hover:scale-[1.02]"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
           <div
@@ -148,7 +148,7 @@ export function ProductCard({
         {tileSizeLabel ? (
           <p className="type-caption text-text-muted">{tileSizeLabel}</p>
         ) : null}
-        <div className="mt-auto flex items-end justify-between gap-3 pt-1">
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-3 pt-1">
           <div className="flex flex-col gap-1.5">
             <p className="type-body font-medium text-text">{priceLabel}</p>
             <Badge variant={availabilityBadge[availability]} />

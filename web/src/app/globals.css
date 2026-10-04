@@ -159,6 +159,12 @@
     }
   }
 
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   body {
     margin: 0;
     min-height: 100dvh;
@@ -328,4 +334,30 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/*
+ * Storefront pages: let tile atmospheres show through section fills.
+ * No backdrop-filter — that was making the material look blurry.
+ */
+.storefront-shell .bg-surface {
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface) 86%,
+    transparent
+  ) !important;
+}
+.storefront-shell .bg-surface-muted {
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-muted) 82%,
+    transparent
+  ) !important;
+}
+.storefront-shell .bg-background {
+  background-color: color-mix(
+    in srgb,
+    var(--color-background) 80%,
+    transparent
+  ) !important;
 }

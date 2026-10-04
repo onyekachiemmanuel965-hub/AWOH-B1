@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { EmptyState, ErrorState } from "@/components/feedback/feedback";
 import { createPageMetadata } from "@/lib/metadata";
@@ -36,9 +35,7 @@ export default async function CategoriesPage() {
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="porcelain">
         {pageBanner ? (
           <PageImageBanner src={pageBanner.url} alt={pageBanner.altText} />
         ) : null}
@@ -66,7 +63,7 @@ export default async function CategoriesPage() {
                 description="Seed the development catalog to preview category discovery."
               />
             ) : (
-              <ul className="grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid list-none gap-5 p-0 md:grid-cols-2 lg:grid-cols-3">
                 {categories.map((cat) => (
                   <li key={cat.id}>
                     <CategoryCard category={cat} />
@@ -76,9 +73,7 @@ export default async function CategoriesPage() {
             )}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }
 

@@ -15,14 +15,14 @@ export function BrandMark({
     <Link
       href={href}
       className={cn(
-        "group inline-flex items-center gap-3 no-underline",
+        "group inline-flex min-w-0 items-center gap-2 no-underline sm:gap-3",
         className,
       )}
       aria-label="AWOH-B THE GREAT TILES VENTURE home"
     >
       <span
         className={cn(
-          "flex size-9 items-center justify-center border",
+          "flex size-9 shrink-0 items-center justify-center border",
           inverse
             ? "border-accent/70 bg-transparent text-accent"
             : "border-accent/60 bg-primary text-accent",
@@ -33,10 +33,10 @@ export function BrandMark({
           A
         </span>
       </span>
-      <span className="flex flex-col leading-tight">
+      <span className="flex min-w-0 flex-col leading-tight">
         <span
           className={cn(
-            "font-brand-display text-xl tracking-wide",
+            "truncate font-brand-display text-lg tracking-wide sm:text-xl",
             inverse
               ? "text-text-inverse"
               : "text-primary group-hover:text-primary-hover",
@@ -46,7 +46,7 @@ export function BrandMark({
         </span>
         <span
           className={cn(
-            "type-caption uppercase tracking-[0.14em]",
+            "hidden truncate type-caption uppercase tracking-[0.12em] md:block md:tracking-[0.14em]",
             inverse ? "text-accent/85" : "text-text-muted",
           )}
         >

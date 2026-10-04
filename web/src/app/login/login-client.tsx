@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,9 +50,7 @@ export default function LoginPage() {
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="marble">
         <Section className="!py-12 md:!py-16">
           <Container className="max-w-md">
             <p className="type-caption uppercase tracking-[0.16em] text-accent">
@@ -116,8 +113,6 @@ export default function LoginPage() {
             </p>
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

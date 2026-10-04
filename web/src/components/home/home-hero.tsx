@@ -51,7 +51,7 @@ export function HomeHero({
         className="relative flex min-h-[min(92dvh,52rem)] flex-col justify-end pb-14 pt-28 sm:justify-center sm:pb-20 sm:pt-24"
       >
         <div className="motion-fade-in max-w-xl space-y-6 sm:max-w-2xl">
-          <p className="type-caption uppercase tracking-[0.18em] text-accent">
+          <p className="type-caption uppercase tracking-[0.12em] text-accent sm:tracking-[0.18em]">
             AWOH-B THE GREAT TILES VENTURE
           </p>
           <h1 id="hero-heading" className="type-display text-primary">
@@ -61,7 +61,7 @@ export function HomeHero({
             Premium tiles and architectural finishing materials selected for
             spaces that demand quality, character, and lasting appeal.
           </p>
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Link href="/products" className={ctaPrimary}>
               Explore Collections
             </Link>

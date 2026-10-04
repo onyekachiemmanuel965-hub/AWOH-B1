@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -14,11 +14,12 @@ import {
   ErrorState,
   LoadingSpinner,
 } from "@/components/feedback/feedback";
+import { ImageZoomLightbox } from "@/components/product/image-zoom-lightbox";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useCart } from "@/components/cart/cart-provider";
 import { useToast } from "@/components/feedback/toast";
 import { formatMoney } from "@/lib/money";
-import { resolveProducts, type PublicProduct } from "@/lib/api";
+import { mediaUrl, resolveProducts, type PublicProduct } from "@/lib/api";
 import { createOrder, initializePayment } from "@/lib/orders-api";
 import {
   fetchLgas,
@@ -269,23 +270,17 @@ export default function CheckoutPage() {
 
   if (authLoading || (!user && !authLoading)) {
     return (
-      <>
-        <SiteHeader />
-        <main id="main-content" className="py-20">
-          <Container>
-            <LoadingSpinner label="Preparing checkout…" />
-          </Container>
-        </main>
-        <SiteFooter />
-      </>
+      <StorefrontShell atmosphere="marble" mainClassName="py-20">
+        <Container>
+          <LoadingSpinner label="Preparing checkout…" />
+        </Container>
+      </StorefrontShell>
     );
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
-        <Section className="!py-12">
+    <StorefrontShell atmosphere="marble">
+      <Section className="!py-12">
           <Container className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
               <p className="type-caption uppercase tracking-[0.16em] text-accent">
@@ -343,7 +338,7 @@ export default function CheckoutPage() {
                     </label>
                   </fieldset>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <Input
                       id="checkout-email"
                       label="Email"
@@ -519,17 +514,60 @@ export default function CheckoutPage() {
 
             <aside className="border border-border bg-surface p-6">
               <h2 className="type-h3 text-primary">Order summary</h2>
-              <ul className="mt-4 list-none space-y-3 p-0">
-                {lines.map(({ line, product, lineTotal }) => (
-                  <li key={line.productId} className="type-body-sm">
-                    <div className="flex justify-between gap-3">
-                      <span>
-                        {product.name} × {line.quantity}
-                      </span>
-                      <span>{formatMoney(lineTotal, currency)}</span>
-                    </div>
-                  </li>
-                ))}
+              <ul className="mt-4 list-none space-y-4 p-0">
+                {lines.map(({ line, product, lineTotal }) => {
+                  const imgSrc = product.primaryImage
+                    ? mediaUrl(product.primaryImage)
+                    : "";
+                  return (
+                    <li
+                      key={line.productId}
+                      className="grid grid-cols-[4.5rem_1fr] gap-3 type-body-sm"
+                    >
+                      {imgSrc ? (
+                        <ImageZoomLightbox
+                          src={imgSrc}
+                          alt={product.images[0]?.altText ?? product.name}
+                          hint="Zoom"
+                          className="shrink-0"
+                        >
+                          <span className="relative block aspect-square overflow-hidden border border-border bg-surface-muted">
+                            <Image
+                              src={imgSrc}
+                              alt={product.images[0]?.altText ?? product.name}
+                              fill
+                              unoptimized={product.primaryImage?.endsWith(
+                                ".svg",
+                              )}
+                              className="object-cover"
+                              sizes="72px"
+                            />
+                          </span>
+                        </ImageZoomLightbox>
+                      ) : (
+                        <span className="aspect-square border border-border bg-surface-muted" />
+                      )}
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex justify-between gap-3">
+                          <span className="truncate font-medium text-primary">
+                            {product.name} × {line.quantity}
+                          </span>
+                          <span className="shrink-0">
+                            {formatMoney(lineTotal, currency)}
+                          </span>
+                        </div>
+                        {product.tileSizeLabel ? (
+                          <p className="type-caption text-text-muted">
+                            {product.tileSizeLabel}
+                          </p>
+                        ) : null}
+                        <p className="type-caption text-text-muted">
+                          Tap image to inspect
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="mt-6 border-t border-border pt-4">
                 <p className="flex justify-between type-label">
@@ -555,8 +593,6 @@ export default function CheckoutPage() {
             </aside>
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+    </StorefrontShell>
   );
 }

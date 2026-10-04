@@ -1,8 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section, Grid } from "@/components/layout/primitives";
 import { ProductCard } from "@/components/product/product-card";
 import { EmptyState } from "@/components/feedback/feedback";
@@ -51,9 +50,7 @@ export default async function CategoryPage({ params }: { params: Params }) {
   });
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="porcelain">
         <Section className="border-b border-border bg-surface-muted !py-12">
           <Container width="wide" className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
@@ -84,29 +81,6 @@ export default async function CategoryPage({ params }: { params: Params }) {
 
         <Section className="!py-10">
           <Container width="wide" className="space-y-10">
-            {category.subcategories.length > 0 ? (
-              <div>
-                <h2 className="type-h3 text-primary">Subcategories</h2>
-                <ul className="mt-4 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-                  {category.subcategories.map((sub) => (
-                    <li key={sub.id}>
-                      <Link
-                        href={`/categories/${category.slug}/${sub.slug}`}
-                        className="block border border-border bg-surface p-4 no-underline transition-colors hover:border-primary"
-                      >
-                        <span className="type-h4 text-primary">{sub.name}</span>
-                        {sub.description ? (
-                          <p className="mt-1 type-body-sm text-text-muted">
-                            {sub.description}
-                          </p>
-                        ) : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
             <div>
               <h2 className="type-h3 text-primary">Products</h2>
               <p className="mt-1 type-body-sm text-text-muted">
@@ -150,10 +124,45 @@ export default async function CategoryPage({ params }: { params: Params }) {
                 </Grid>
               )}
             </div>
+
+            {category.subcategories.length > 0 ? (
+              <div>
+                <h2 className="type-h3 text-primary">Shop by size</h2>
+                <ul className="mt-4 grid list-none gap-4 p-0 md:grid-cols-2 lg:grid-cols-3">
+                  {category.subcategories.map((sub) => (
+                    <li key={sub.id}>
+                      <Link
+                        href={`/categories/${category.slug}/${sub.slug}`}
+                        className="group block overflow-hidden border border-border bg-surface no-underline transition-colors hover:border-primary"
+                      >
+                        {sub.imageUrl ? (
+                          <div className="relative aspect-square w-full bg-surface-muted">
+                            <Image
+                              src={mediaUrl(sub.imageUrl)}
+                              alt=""
+                              fill
+                              unoptimized={sub.imageUrl.endsWith(".svg")}
+                              className="object-cover transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] group-hover:scale-[1.03]"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            />
+                          </div>
+                        ) : null}
+                        <div className="p-4">
+                          <span className="type-h4 text-primary">{sub.name}</span>
+                          {sub.description ? (
+                            <p className="mt-1 type-body-sm text-text-muted">
+                              {sub.description}
+                            </p>
+                          ) : null}
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

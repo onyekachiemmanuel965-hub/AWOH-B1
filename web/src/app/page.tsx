@@ -1,10 +1,8 @@
 import { createPageMetadata, siteConfig } from "@/lib/metadata";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { HomeHero } from "@/components/home/home-hero";
 import { BrandIntro } from "@/components/home/brand-intro";
 import { CategoryDiscovery } from "@/components/home/category-discovery";
-import { FeaturedCollection } from "@/components/home/featured-collection";
 import { WhyAwoh } from "@/components/home/why-awoh";
 import { InspirationGallery } from "@/components/home/inspiration-gallery";
 import { HomeCta } from "@/components/home/home-cta";
@@ -23,18 +21,13 @@ export default async function HomePage() {
   const hero = map.get("home.hero");
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
-        <HomeHero imageSrc={hero?.url} imageAlt={hero?.altText} />
-        <BrandIntro />
-        <CategoryDiscovery />
-        <FeaturedCollection />
-        <WhyAwoh />
-        <InspirationGallery images={images} />
-        <HomeCta />
-      </main>
-      <SiteFooter />
-    </>
+    <StorefrontShell atmosphere="interior">
+      <HomeHero imageSrc={hero?.url} imageAlt={hero?.altText} />
+      <BrandIntro />
+      <CategoryDiscovery />
+      <WhyAwoh />
+      <InspirationGallery images={images} />
+      <HomeCta />
+    </StorefrontShell>
   );
 }

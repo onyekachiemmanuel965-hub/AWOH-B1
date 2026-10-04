@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/feedback/feedback";
@@ -32,9 +31,7 @@ export default function AccountPage() {
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="stone">
         <Section className="!py-12 md:!py-16">
           <Container className="max-w-lg space-y-8">
             <div>
@@ -91,8 +88,6 @@ export default function AccountPage() {
             )}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

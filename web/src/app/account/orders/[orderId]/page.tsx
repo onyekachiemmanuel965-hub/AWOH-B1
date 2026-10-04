@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import {
@@ -493,10 +492,8 @@ function OrderDetailInner() {
     order.status !== "CANCELLED";
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
-        <Section className="!py-12">
+    <StorefrontShell atmosphere="stone">
+      <Section className="!py-12">
           <Container className="max-w-3xl space-y-8">
             <div>
               <Link
@@ -784,9 +781,7 @@ function OrderDetailInner() {
             )}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+    </StorefrontShell>
   );
 }
 
@@ -794,15 +789,11 @@ export default function OrderDetailPage() {
   return (
     <Suspense
       fallback={
-        <>
-          <SiteHeader />
-          <main className="py-20">
-            <Container>
-              <LoadingSpinner label="Loading order…" />
-            </Container>
-          </main>
-          <SiteFooter />
-        </>
+        <StorefrontShell atmosphere="stone" mainClassName="py-20">
+          <Container>
+            <LoadingSpinner label="Loading order…" />
+          </Container>
+        </StorefrontShell>
       }
     >
       <OrderDetailInner />

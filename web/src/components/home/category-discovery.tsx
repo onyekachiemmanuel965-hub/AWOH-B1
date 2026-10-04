@@ -1,44 +1,30 @@
-import Image from "next/image";
 import Link from "next/link";
-import { Container } from "@/components/layout/primitives";
-import { fetchCategories, mediaUrl, type PublicCategory } from "@/lib/api";
-import { cn } from "@/lib/cn";
+import { Container, Grid } from "@/components/layout/primitives";
+import { ProductCard } from "@/components/product/product-card";
 import { EmptyState } from "@/components/feedback/feedback";
+import {
+  fetchCategories,
+  fetchProducts,
+  formatProductPrice,
+  mediaUrl,
+  type PublicProduct,
+} from "@/lib/api";
+
+const SHOWCASE_COUNT = 10;
 
 /**
- * Category discovery from live catalog API.
+ * Homepage product showcase — ~10 different live catalog products.
+ * Replaces the large category-tile mosaic on the landing page.
  */
 export async function CategoryDiscovery() {
-  let categories: PublicCategory[] = [];
+  let products: PublicProduct[] = [];
+  let error = false;
+
   try {
-    categories = await fetchCategories();
+    products = await loadShowcaseProducts(SHOWCASE_COUNT);
   } catch {
-    return (
-      <section id="collections" className="bg-surface-muted py-16 md:py-24">
-        <Container width="wide">
-          <EmptyState
-            title="Collections unavailable"
-            description="Start the AWOH-B API to load categories."
-          />
-        </Container>
-      </section>
-    );
+    error = true;
   }
-
-  if (categories.length === 0) {
-    return (
-      <section id="collections" className="bg-surface-muted py-16 md:py-24">
-        <Container width="wide">
-          <EmptyState
-            title="No categories yet"
-            description="Seed the development catalog to preview category discovery."
-          />
-        </Container>
-      </section>
-    );
-  }
-
-  const [primary, ...rest] = categories;
 
   return (
     <section
@@ -47,99 +33,114 @@ export async function CategoryDiscovery() {
       className="bg-surface-muted py-16 md:py-24"
     >
       <Container width="wide">
-        <div className="mb-10 flex flex-col gap-3 md:mb-14 md:max-w-2xl">
-          <p className="type-caption uppercase tracking-[0.16em] text-accent">
-            Collections
-          </p>
-          <h2 id="collections-heading" className="type-h2 text-primary">
-            Discover by material character
-          </h2>
-          <p className="type-body text-text-muted">
-            Categories and subcategories are loaded from the catalog service —
-            expandable without hard-coded UI taxonomies.
-          </p>
+        <div className="mb-10 flex flex-col justify-between gap-4 md:mb-12 md:flex-row md:items-end">
+          <div className="max-w-2xl space-y-3">
+            <p className="type-caption uppercase tracking-[0.16em] text-accent">
+              Selected materials
+            </p>
+            <h2 id="collections-heading" className="type-h2 text-primary">
+              Ten surfaces from the collection
+            </h2>
+            <p className="type-body text-text-muted">
+              A curated set of individual tiles from the live catalog — browse
+              each piece, then explore the full assortment when you are ready.
+            </p>
+          </div>
+          <Link
+            href="/products"
+            className="type-label shrink-0 text-primary underline-offset-4 hover:underline"
+          >
+            View all products
+          </Link>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-12 lg:gap-5">
-          <CategoryTile
-            href={`/categories/${primary.slug}`}
-            name={primary.name}
-            phrase={primary.description ?? "Explore this collection"}
-            imageSrc={mediaUrl(
-              primary.imageUrl ?? "/images/placeholders/category-tiles.svg",
-            )}
-            className="min-h-[22rem] lg:col-span-7 lg:min-h-[36rem]"
-            priority
+        {error ? (
+          <EmptyState
+            title="Products unavailable"
+            description="Start the AWOH-B API to load catalog products."
           />
-          <ul className="grid list-none gap-4 p-0 sm:grid-cols-3 lg:col-span-5 lg:grid-cols-1 lg:gap-5">
-            {rest.map((cat) => (
-              <li key={cat.id}>
-                <CategoryTile
-                  href={`/categories/${cat.slug}`}
-                  name={cat.name}
-                  phrase={cat.description ?? "Explore this collection"}
-                  imageSrc={mediaUrl(
-                    cat.imageUrl ??
-                      "/images/placeholders/category-surfaces.svg",
-                  )}
-                  className="min-h-[14rem] lg:min-h-[calc((36rem-2.5rem)/3)]"
-                />
-              </li>
+        ) : products.length === 0 ? (
+          <EmptyState
+            title="No products yet"
+            description="Load the catalog to preview materials on the storefront."
+          />
+        ) : (
+          <Grid cols={4}>
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                productId={product.id}
+                name={product.name}
+                category={product.category.name}
+                subcategory={product.subcategory.name}
+                priceLabel={formatProductPrice(product)}
+                imageSrc={mediaUrl(product.primaryImage) || undefined}
+                imageAlt={product.images[0]?.altText ?? product.name}
+                tileSize={product.tileSize}
+                tileSizeLabel={product.tileSizeLabel}
+                tileAspectRatio={product.tileAspectRatio}
+                availability={
+                  product.availability === "AVAILABLE"
+                    ? "available"
+                    : "out-of-stock"
+                }
+                href={`/products/${product.slug}`}
+              />
             ))}
-          </ul>
-        </div>
+          </Grid>
+        )}
       </Container>
     </section>
   );
 }
 
-function CategoryTile({
-  href,
-  name,
-  phrase,
-  imageSrc,
-  className,
-  priority,
-}: {
-  href: string;
-  name: string;
-  phrase: string;
-  imageSrc: string;
-  className?: string;
-  priority?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group relative block overflow-hidden border border-border bg-surface no-underline",
-        className,
-      )}
-    >
-      <Image
-        src={imageSrc}
-        alt=""
-        fill
-        priority={priority}
-        unoptimized={imageSrc.endsWith(".svg")}
-        className="object-cover transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] group-hover:scale-[1.03]"
-        sizes="(max-width: 1024px) 100vw, 60vw"
-      />
-      <div
-        className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent"
-        aria-hidden
-      />
-      <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-        <h3 className="font-brand-display text-2xl text-text-inverse sm:text-3xl">
-          {name}
-        </h3>
-        <p className="mt-1 line-clamp-2 type-body-sm text-text-inverse/80">
-          {phrase}
-        </p>
-        <span className="mt-3 inline-block type-caption uppercase tracking-[0.12em] text-accent">
-          View collection
-        </span>
-      </div>
-    </Link>
+/** Pull a few products from several categories so the homepage mix looks varied. */
+async function loadShowcaseProducts(count: number) {
+  const categories = await fetchCategories();
+  const catalogCategories = categories.filter(
+    (c) =>
+      !c.slug.startsWith("smoke-") &&
+      c.slug !== "tiles" &&
+      c.slug !== "architectural-surfaces" &&
+      c.slug !== "finishing-materials",
   );
+
+  const perCategory = Math.max(
+    1,
+    Math.ceil(count / Math.max(catalogCategories.length, 1)),
+  );
+
+  const batches = await Promise.all(
+    catalogCategories.map((category) =>
+      fetchProducts({
+        category: category.slug,
+        limit: perCategory,
+        sort: "newest",
+      })
+        .then((r) => r.data)
+        .catch(() => [] as PublicProduct[]),
+    ),
+  );
+
+  const queues = batches.filter((b) => b.length > 0);
+  const picked: PublicProduct[] = [];
+  let index = 0;
+
+  while (picked.length < count && queues.some((q) => q.length > 0)) {
+    const queue = queues[index % queues.length];
+    index += 1;
+    const next = queue.shift();
+    if (next) picked.push(next);
+  }
+
+  if (picked.length < count) {
+    const fallback = await fetchProducts({ limit: count, sort: "newest" });
+    for (const product of fallback.data) {
+      if (picked.length >= count) break;
+      if (picked.some((p) => p.id === product.id)) continue;
+      picked.push(product);
+    }
+  }
+
+  return picked;
 }

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { ProductDetailClient } from "@/components/product/product-detail-client";
 import { createPageMetadata } from "@/lib/metadata";
@@ -40,9 +39,7 @@ export default async function ProductDetailPage({
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="stone">
         <Section className="!py-10 md:!py-16">
           <Container width="wide">
             <nav className="mb-8 type-caption text-text-muted" aria-label="Breadcrumb">
@@ -67,8 +64,6 @@ export default async function ProductDetailPage({
             <ProductDetailClient product={product} />
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

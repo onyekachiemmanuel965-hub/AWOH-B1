@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section } from "@/components/layout/primitives";
 import { PageImageBanner } from "@/components/content/page-image-banner";
 import { createPageMetadata, siteConfig } from "@/lib/metadata";
@@ -32,9 +31,7 @@ export default async function ContactPage() {
   const banner = storefrontImageMap(images).get("contact.hero");
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="stone">
         {banner?.isCustom ? (
           <PageImageBanner src={banner.url} alt={banner.altText} />
         ) : null}
@@ -114,8 +111,6 @@ export default async function ContactPage() {
             </div>
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

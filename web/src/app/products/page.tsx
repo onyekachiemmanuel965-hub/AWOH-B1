@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { SiteHeader } from "@/components/navigation/site-header";
-import { SiteFooter } from "@/components/navigation/site-footer";
+import { StorefrontShell } from "@/components/layout/storefront-shell";
 import { Container, Section, Grid } from "@/components/layout/primitives";
 import { ProductCard } from "@/components/product/product-card";
 import { CatalogFilters } from "@/components/catalog/catalog-filters";
@@ -82,9 +81,7 @@ export default async function ProductsPage({
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main id="main-content">
+    <StorefrontShell atmosphere="porcelain">
         {pageBanner ? (
           <PageImageBanner src={pageBanner.url} alt={pageBanner.altText} />
         ) : null}
@@ -219,8 +216,6 @@ export default async function ProductsPage({
             )}
           </Container>
         </Section>
-      </main>
-      <SiteFooter />
-    </>
+      </StorefrontShell>
   );
 }

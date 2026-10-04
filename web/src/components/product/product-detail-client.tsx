@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/ui/search-input";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/components/cart/cart-provider";
+import { ImageZoomLightbox } from "@/components/product/image-zoom-lightbox";
 import type { PublicProduct } from "@/lib/api";
 import { formatProductPrice, mediaUrl } from "@/lib/api";
 import { tileAspectRatioCss } from "@/lib/tile-size";
@@ -30,22 +31,33 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
   return (
     <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
       <div className="space-y-4">
-        <div
-          className="relative w-full overflow-hidden border border-border bg-surface-muted"
-          style={{ aspectRatio: aspect }}
-        >
-          {current ? (
-            <Image
-              src={currentSrc}
-              alt={current.altText ?? product.name}
-              fill
-              priority
-              unoptimized={current.url.endsWith(".svg")}
-              className="object-contain"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-            />
-          ) : null}
-        </div>
+        {currentSrc ? (
+          <ImageZoomLightbox
+            src={currentSrc}
+            alt={current?.altText ?? product.name}
+            hint="Tap to zoom"
+          >
+            <div
+              className="relative w-full overflow-hidden border border-border bg-surface-muted"
+              style={{ aspectRatio: aspect }}
+            >
+              <Image
+                src={currentSrc}
+                alt={current?.altText ?? product.name}
+                fill
+                priority
+                unoptimized={current?.url.endsWith(".svg")}
+                className="object-contain"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+            </div>
+          </ImageZoomLightbox>
+        ) : (
+          <div
+            className="relative w-full overflow-hidden border border-border bg-surface-muted"
+            style={{ aspectRatio: aspect }}
+          />
+        )}
         {images.length > 1 ? (
           <ul className="flex list-none gap-2 overflow-x-auto p-0">
             {images.map((img) => {
