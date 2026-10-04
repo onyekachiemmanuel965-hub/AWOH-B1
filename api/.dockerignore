@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+.git
+*.md
+*-out.txt
+.env
+.env.*
+imports
+storage/receipts
+**/*.log

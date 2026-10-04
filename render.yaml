@@ -1,0 +1,70 @@
+# AWOH-B client preview on Render (website + API).
+# Free web services sleep after inactivity — first visit can take ~1 minute to wake.
+services:
+  - type: web
+    name: awoh-b-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: DATABASE_URL
+        value: file:./prisma/dev.db
+      - key: CURRENCY_DEFAULT
+        value: NGN
+      - key: PAYMENT_CURRENCY
+        value: NGN
+      - key: COOKIE_SAMESITE
+        value: lax
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: PAYSTACK_MODE
+        value: test
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      - key: EMAIL_MODE
+        value: console
+      - key: DELIVERY_DISTANCE_PROVIDER
+        value: mock
+      - key: DELIVERY_DEFAULT_DISTANCE_RATE
+        value: "500.00"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL_SEC
+        value: "900"
+      - key: JWT_REFRESH_TTL_SEC
+        value: "1209600"
+      - key: CORS_ORIGIN
+        sync: false
+      - key: PAYMENT_CALLBACK_URL
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: awoh-b-web
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./web/Dockerfile
+    dockerContext: ./web
+    dockerBuildArgs:
+      NEXT_PUBLIC_API_URL: https://awoh-b-api.onrender.com
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://awoh-b-api.onrender.com
