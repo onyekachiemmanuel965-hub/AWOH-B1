@@ -10,6 +10,7 @@ RUN npm ci
 
 FROM deps AS build
 COPY . .
+ENV NODE_OPTIONS=--max-old-space-size=460
 RUN npx prisma generate && npm run build
 
 FROM node:22-bookworm-slim AS runner
@@ -25,12 +26,10 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY prisma/dev.db ./prisma/dev.db
 COPY storage/uploads ./storage/uploads
-COPY scripts/render-start.sh ./scripts/render-start.sh
-RUN chmod +x ./scripts/render-start.sh \
-  && mkdir -p ./storage/uploads ./storage/receipts
-ENV PORT=4000
+RUN mkdir -p ./storage/uploads ./storage/receipts
+# Render sets PORT at runtime; Prisma SQLite paths are relative to prisma/schema.prisma
+ENV DATABASE_URL="file:./dev.db"
 ENV UPLOADS_DIR=/app/storage/uploads
 ENV RECEIPTS_DIR=/app/storage/receipts
-ENV DATABASE_URL="file:./prisma/dev.db"
-EXPOSE 4000
-CMD ["./scripts/render-start.sh"]
+EXPOSE 10000
+CMD ["sh", "-c", "if [ -f dist/src/main.js ]; then exec node dist/src/main.js; else exec node dist/main.js; fi"]

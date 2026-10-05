@@ -12,10 +12,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "4000"
       - key: DATABASE_URL
-        value: "file:./prisma/dev.db"
+        value: "file:./dev.db"
+      - key: CORS_ORIGIN
+        value: https://awoh-b-web.onrender.com
+      - key: PAYMENT_CALLBACK_URL
+        value: https://awoh-b-web.onrender.com/account/orders
       - key: CURRENCY_DEFAULT
         value: NGN
       - key: PAYMENT_CURRENCY
@@ -40,16 +42,12 @@ services:
         value: "900"
       - key: JWT_REFRESH_TTL_SEC
         value: "1209600"
-      - key: CORS_ORIGIN
-        sync: false
-      - key: PAYMENT_CALLBACK_URL
-        sync: false
       - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: PAYSTACK_PUBLIC_KEY
         sync: false
       - key: PAYSTACK_WEBHOOK_SECRET
-        sync: false
+        value: ""
 
   - type: web
     name: awoh-b-web
