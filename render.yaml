@@ -15,7 +15,7 @@ services:
       - key: PORT
         value: "4000"
       - key: DATABASE_URL
-        value: file:./prisma/dev.db
+        value: "file:./prisma/dev.db"
       - key: CURRENCY_DEFAULT
         value: NGN
       - key: PAYMENT_CURRENCY
@@ -58,8 +58,6 @@ services:
     region: oregon
     dockerfilePath: ./web/Dockerfile
     dockerContext: ./web
-    dockerBuildArgs:
-      NEXT_PUBLIC_API_URL: https://awoh-b-api.onrender.com
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
