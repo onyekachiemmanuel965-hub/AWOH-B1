@@ -1,0 +1,25 @@
+# Pings the hosted Render preview so Free instances do not sleep after 15 minutes idle.
+# Note: while awake, Free services still consume monthly Free instance hours (750/workspace).
+name: Keep Render awake
+
+on:
+  schedule:
+    # Every 10 minutes
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake website
+        run: |
+          curl -fsS --max-time 120 -o /dev/null \
+            https://awoh-b-web.onrender.com/ \
+            || true
+      - name: Wake API
+        run: |
+          curl -fsS --max-time 120 \
+            https://awoh-b-api.onrender.com/api/v1/health \
+            || true
